@@ -16,9 +16,10 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPackable>true</IsPackable>
 
-    <!-- Include symbols for debugging -->
-    <IncludeSymbols>true</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <!-- Embed debug symbols and source code for debugging -->
+    <DebugSymbols>true</DebugSymbols>
+    <EmbedAllSources>true</EmbedAllSources>
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
 
   <!-- Set PackageId using MSBuildProjectName which is available at the right time -->
