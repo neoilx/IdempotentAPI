@@ -40,7 +40,14 @@ namespace IdempotentAPI.AccessCache.Lockers
         {
             while (true)
             {
-                var minlockValueMapperiLock = lockValueMapper[_lockedValue];
+                // Use TryGetValue instead of indexer to handle race condition where
+                // another thread may have already removed the key
+                if (!lockValueMapper.TryGetValue(_lockedValue, out var minlockValueMapperiLock))
+                {
+                    // Key was already removed by another thread, nothing to do
+                    break;
+                }
+
                 var updatedLock = minlockValueMapperiLock with { Count = minlockValueMapperiLock.Count - 1 };
                 if (lockValueMapper.TryUpdate(_lockedValue, updatedLock, minlockValueMapperiLock))
                 {

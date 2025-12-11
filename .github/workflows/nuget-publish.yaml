@@ -1,0 +1,130 @@
+name: Build and Publish NuGet Packages
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      version_suffix:
+        description: 'Version suffix (e.g., preview, beta). Leave empty for release version.'
+        required: false
+        default: ''
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_NOLOGO: true
+  NuGetDirectory: ${{ github.workspace }}/nuget
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --configuration Release --no-restore --verbosity normal
+
+      - name: Determine version suffix
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.version_suffix }}" ]]; then
+            echo "suffix=${{ github.event.inputs.version_suffix }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "suffix=" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/heads/main || "${{ github.ref }}" == refs/heads/master ]]; then
+            echo "suffix=ci.${{ github.run_number }}" >> $GITHUB_OUTPUT
+          else
+            echo "suffix=pr.${{ github.run_number }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Pack NuGet packages
+        run: |
+          VERSION_SUFFIX="${{ steps.version.outputs.suffix }}"
+          if [ -n "$VERSION_SUFFIX" ]; then
+            dotnet pack --configuration Release --no-build --output ${{ env.NuGetDirectory }} --version-suffix "$VERSION_SUFFIX"
+          else
+            dotnet pack --configuration Release --no-build --output ${{ env.NuGetDirectory }}
+          fi
+
+      - name: Upload NuGet packages as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: ${{ env.NuGetDirectory }}/*.nupkg
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Symbol packages as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-symbols
+          path: ${{ env.NuGetDirectory }}/*.snupkg
+          if-no-files-found: ignore
+          retention-days: 7
+
+  publish-github:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Download NuGet packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: ${{ env.NuGetDirectory }}
+
+      - name: Download Symbol packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-symbols
+          path: ${{ env.NuGetDirectory }}
+        continue-on-error: true
+
+      - name: Publish to GitHub Packages
+        run: |
+          for package in ${{ env.NuGetDirectory }}/*.nupkg; do
+            echo "Publishing $package"
+            dotnet nuget push "$package" \
+              --api-key ${{ secrets.GITHUB_TOKEN }} \
+              --source "https://nuget.pkg.github.com/neoilx/index.json" \
+              --skip-duplicate
+          done

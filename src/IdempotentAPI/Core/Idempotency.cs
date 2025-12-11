@@ -241,6 +241,19 @@ namespace IdempotentAPI.Core
                 _idempotencyKey = GetIdempotencyKeyOrThrow(context.HttpContext.Request);
             }
 
+            // Generate the request data hash for the current request
+            // This is needed for both:
+            // 1. Comparing with cached hash when cache hit occurs
+            // 2. Storing in cache when the request completes
+            // Note: For Minimal APIs, the hash is already set by PrepareMinimalApiIdempotencyAsync
+            // so we only generate it here if not already present
+            string requestsDataHash = context.HttpContext.GetRequestsDataHash();
+            if (string.IsNullOrEmpty(requestsDataHash))
+            {
+                requestsDataHash = await GenerateRequestsDataHashAsync(context.HttpContext.Request);
+                context.HttpContext.SetRequestsDataHash(requestsDataHash);
+            }
+
             // Check if idempotencyKey exists in cache and return value:
             Guid uniqueRequestId = Guid.NewGuid();
             byte[] cacheDataBytes;
@@ -544,8 +557,10 @@ namespace IdempotentAPI.Core
             List<object> requestsData = new();
 
             // The Request body:
-            if (httpRequest.ContentLength.HasValue
-                && httpRequest.Body != null)
+            // Note: We don't check ContentLength.HasValue because in TestServer/WebApplicationFactory
+            // scenarios, ContentLength may be null even when the body has content. GetRawBodyAsync()
+            // already handles EnableBuffering() and checking if the body can be read.
+            if (httpRequest.Body != null)
             {
                 string? rawBody = await httpRequest.GetRawBodyAsync();
                 if (rawBody != null)
