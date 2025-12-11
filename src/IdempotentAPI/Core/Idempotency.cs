@@ -245,8 +245,14 @@ namespace IdempotentAPI.Core
             // This is needed for both:
             // 1. Comparing with cached hash when cache hit occurs
             // 2. Storing in cache when the request completes
-            string requestsDataHash = await GenerateRequestsDataHashAsync(context.HttpContext.Request);
-            context.HttpContext.SetRequestsDataHash(requestsDataHash);
+            // Note: For Minimal APIs, the hash is already set by PrepareMinimalApiIdempotencyAsync
+            // so we only generate it here if not already present
+            string requestsDataHash = context.HttpContext.GetRequestsDataHash();
+            if (string.IsNullOrEmpty(requestsDataHash))
+            {
+                requestsDataHash = await GenerateRequestsDataHashAsync(context.HttpContext.Request);
+                context.HttpContext.SetRequestsDataHash(requestsDataHash);
+            }
 
             // Check if idempotencyKey exists in cache and return value:
             Guid uniqueRequestId = Guid.NewGuid();
