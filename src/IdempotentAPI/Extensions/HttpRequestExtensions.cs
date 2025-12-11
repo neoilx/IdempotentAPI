@@ -23,7 +23,9 @@ namespace IdempotentAPI.Extensions
 
             request.Body.Position = 0;
 
-            var reader = new StreamReader(request.Body, encoding ?? Encoding.UTF8);
+            // Use leaveOpen: true to prevent the StreamReader from closing the underlying stream
+            // when it's disposed or garbage collected
+            using var reader = new StreamReader(request.Body, encoding ?? Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: -1, leaveOpen: true);
 
             var body = await reader.ReadToEndAsync().ConfigureAwait(false);
 

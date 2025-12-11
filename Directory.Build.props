@@ -1,0 +1,33 @@
+<Project>
+  <PropertyGroup>
+    <!-- Package metadata for neoilx fork -->
+    <Authors>Ioannis Kyriakidis, neoilx</Authors>
+    <Company>neoilx</Company>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/neoilx/IdempotentAPI</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/neoilx/IdempotentAPI</PackageProjectUrl>
+
+    <!-- Version prefix - patch version is set by CI/CD -->
+    <VersionPrefix>2.7.0</VersionPrefix>
+
+    <!-- Enable package generation -->
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IsPackable>true</IsPackable>
+
+    <!-- Include symbols for debugging -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <!-- Set PackageId using MSBuildProjectName which is available at the right time -->
+  <PropertyGroup>
+    <PackageId>Neoilx.$(MSBuildProjectName)</PackageId>
+  </PropertyGroup>
+
+  <!-- Include README in all packages -->
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Condition="Exists('$(MSBuildThisFileDirectory)README.md')" />
+  </ItemGroup>
+</Project>
