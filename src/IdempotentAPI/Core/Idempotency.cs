@@ -35,7 +35,13 @@ namespace IdempotentAPI.Core
         /// The read-only list of HTTP Header Keys will be handled from the selected HTTP Server and
         /// not included in the cache.
         /// </summary>
-        private readonly IReadOnlyList<string> _excludeHttpHeaderKeys = new List<string>() { "Transfer-Encoding" };
+        /// <remarks>
+        /// Content-Type is excluded because storing it with charset (e.g., "application/json; charset=utf-8")
+        /// can cause 406 NotAcceptable errors due to content negotiation conflicts when the cached response
+        /// is returned. ASP.NET Core's output formatters will set the correct Content-Type anyway.
+        /// See: https://github.com/ikyriak/IdempotentAPI/issues/78
+        /// </remarks>
+        private readonly IReadOnlyList<string> _excludeHttpHeaderKeys = new List<string>() { "Transfer-Encoding", "Content-Type" };
 
         private readonly double _expiresInMilliseconds;
         private readonly HashAlgorithm _hashAlgorithm;
