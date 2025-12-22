@@ -150,14 +150,16 @@ jobs:
 
       - name: Login to NuGet.org with OIDC
         uses: nuget/login@v1
+        id: nuget-login
         with:
-          nuget-server: https://api.nuget.org/v3/index.json
+          user: ${{ vars.NUGET_USER }}
 
       - name: Publish to NuGet.org
         run: |
           for package in ${{ env.NuGetDirectory }}/*.nupkg; do
             echo "Publishing $package"
             dotnet nuget push "$package" \
+              --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
               --source https://api.nuget.org/v3/index.json \
               --skip-duplicate
           done
