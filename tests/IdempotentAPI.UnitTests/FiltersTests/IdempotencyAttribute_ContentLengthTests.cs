@@ -246,7 +246,7 @@ public class IdempotencyAttribute_ContentLengthTests
         }
 
         // Generate hash
-        var json = Newtonsoft.Json.JsonConvert.SerializeObject(requestsData);
+        var json = System.Text.Json.JsonSerializer.Serialize(requestsData);
         using var sha = System.Security.Cryptography.SHA256.Create();
         var hashBytes = sha.ComputeHash(Encoding.UTF8.GetBytes(json));
         return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
