@@ -70,7 +70,7 @@ switch (caching)
         {
             options.Configuration = "localhost:6379";
         });
-        builder.Services.AddFusionCacheNewtonsoftJsonSerializer();
+        builder.Services.AddFusionCacheSystemTextJsonSerializer();
         builder.Services.AddIdempotentAPIUsingFusionCache();
         break;
     default:

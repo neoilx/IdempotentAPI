@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using IdempotentAPI.Core;
+using IdempotentAPI.Exceptions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
@@ -36,7 +37,19 @@ public class IdempotentAPIEndpointFilter : IEndpointFilter
 
             var actionExecutingContext = new ActionExecutingContext(actionContext, filters, actionArguments, null!);
 
-            await idempotency.ApplyPreIdempotency(actionExecutingContext);
+            try
+            {
+                await idempotency.ApplyPreIdempotency(actionExecutingContext);
+            }
+            catch (IdempotencyKeyValidationException ex)
+            {
+                // Return 400 Bad Request with ProblemDetails for missing/invalid idempotency key
+                return Results.Problem(
+                    type: "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+                    title: "Bad Request",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    detail: ex.Message);
+            }
 
             // short-circuit to exit for async filter when result already set
             // https://learn.microsoft.com/en-us/aspnet/core/mvc/controllers/filters?view=aspnetcore-7.0#action-filters

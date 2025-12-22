@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using IdempotentAPI.AccessCache;
 using IdempotentAPI.AccessCache.Exceptions;
+using IdempotentAPI.Exceptions;
 using IdempotentAPI.Extensions;
 using IdempotentAPI.Helpers;
 using Microsoft.AspNetCore.Http;
@@ -647,29 +648,28 @@ namespace IdempotentAPI.Core
         /// </summary>
         /// <param name="httpRequest"></param>
         /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
-        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="IdempotencyKeyValidationException"></exception>
         private string GetIdempotencyKeyOrThrow(HttpRequest httpRequest)
         {
             // The "headerKeyName" must be provided as a Header:
             if (!httpRequest.Headers.ContainsKey(_headerKeyName))
             {
-                throw new ArgumentNullException(_headerKeyName, "The Idempotency header key is not found.");
+                throw new IdempotencyKeyValidationException($"The '{_headerKeyName}' header is required for idempotent requests.");
             }
 
             if (!httpRequest.Headers.TryGetValue(_headerKeyName, out StringValues idempotencyKeys))
             {
-                throw new ArgumentException("The Idempotency header key value is not found.", _headerKeyName);
+                throw new IdempotencyKeyValidationException($"The '{_headerKeyName}' header value could not be read.");
             }
 
             if (idempotencyKeys.Count > 1)
             {
-                throw new ArgumentException("Multiple Idempotency keys were found.", _headerKeyName);
+                throw new IdempotencyKeyValidationException($"Multiple '{_headerKeyName}' header values were found. Only one value is allowed.");
             }
 
             if (idempotencyKeys.Count <= 0 || string.IsNullOrEmpty(idempotencyKeys.First()))
             {
-                throw new ArgumentNullException(_headerKeyName, "An Idempotency header value is not found.");
+                throw new IdempotencyKeyValidationException($"The '{_headerKeyName}' header value is required and cannot be empty.");
             }
 
             return idempotencyKeys.ToString();

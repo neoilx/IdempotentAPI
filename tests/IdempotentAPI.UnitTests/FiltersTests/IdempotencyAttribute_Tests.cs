@@ -256,7 +256,7 @@ namespace IdempotentAPI.UnitTests.FiltersTests
         /// defining the IdempotencyKey as a header variable.
         ///
         /// Action:
-        /// Throw an ArgumentNullException
+        /// Return 400 Bad Request with ProblemDetails
         ///
         /// Background:
         /// Idempotency is performed only for Post and Patch HTTP requests.
@@ -267,7 +267,7 @@ namespace IdempotentAPI.UnitTests.FiltersTests
         [InlineData("PATCH", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
         [InlineData("POST", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
         [InlineData("PATCH", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
-        public async Task ThrowsException_IfIdempotencyKeyHeaderNotExists_WhenNotOptional_OnPostAndPatch(string httpMethod, CacheImplementation cacheImplementation, DistributedAccessLockImplementation distributedAccessLock)
+        public async Task Returns400BadRequest_IfIdempotencyKeyHeaderNotExists_WhenNotOptional_OnPostAndPatch(string httpMethod, CacheImplementation cacheImplementation, DistributedAccessLockImplementation distributedAccessLock)
         {
             // Arrange
             var actionContext = ArrangeActionContextMock(httpMethod);
@@ -283,12 +283,6 @@ namespace IdempotentAPI.UnitTests.FiltersTests
             bool cacheOnlySuccessResponses = true;
             bool isIdempotencyOptional = false;
 
-            // Expected error messages for different .NET Target Frameworks:
-            List<string> expectedExceptionMessages = new List<string>
-            {
-                "The Idempotency header key is not found. (Parameter 'IdempotencyKey')"
-            };
-
             IIdempotencyAccessCache distributedCache = MemoryDistributedCacheFixture.CreateCacheInstance(cacheImplementation, distributedAccessLock);
             var idempotencyAttributeFilter = new IdempotencyAttributeFilter(
                 distributedCache,
@@ -302,11 +296,17 @@ namespace IdempotentAPI.UnitTests.FiltersTests
                 isIdempotencyOptional);
 
             // Act
-            var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => idempotencyAttributeFilter.OnActionExecutionAsync(actionExecutingContext,
-                () => Task.FromResult(actionExecutedContext)));
+            await idempotencyAttributeFilter.OnActionExecutionAsync(actionExecutingContext,
+                () => Task.FromResult(actionExecutedContext));
 
-            // Assert (Exception message)
-            Assert.Contains(ex.Message, expectedExceptionMessages);
+            // Assert - Returns 400 Bad Request with ProblemDetails
+            Assert.NotNull(actionExecutingContext.Result);
+            Assert.IsType<BadRequestObjectResult>(actionExecutingContext.Result);
+            var badRequestResult = (BadRequestObjectResult)actionExecutingContext.Result;
+            Assert.IsType<ProblemDetails>(badRequestResult.Value);
+            var problemDetails = (ProblemDetails)badRequestResult.Value!;
+            Assert.Equal(400, problemDetails.Status);
+            Assert.Contains("IdempotencyKey", problemDetails.Detail);
         }
 
 
@@ -375,7 +375,7 @@ namespace IdempotentAPI.UnitTests.FiltersTests
         /// the IdempotencyKey as a header variable, but without a value
         ///
         /// Action:
-        /// Throw an ArgumentNullException
+        /// Return 400 Bad Request with ProblemDetails
         ///
         /// Background:
         /// Idempotency is performed only for Post and Patch HTTP requests.
@@ -386,7 +386,7 @@ namespace IdempotentAPI.UnitTests.FiltersTests
         [InlineData("PATCH", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
         [InlineData("POST", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
         [InlineData("PATCH", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
-        public async Task ThrowsException_IfIdempotencyKeyHeaderExistsWithoutValueOnPostAndPatch(string httpMethod, CacheImplementation cacheImplementation, DistributedAccessLockImplementation accessLockImplementation)
+        public async Task Returns400BadRequest_IfIdempotencyKeyHeaderExistsWithoutValueOnPostAndPatch(string httpMethod, CacheImplementation cacheImplementation, DistributedAccessLockImplementation accessLockImplementation)
         {
             // Arrange
             var requestHeaders = new HeaderDictionary
@@ -407,13 +407,6 @@ namespace IdempotentAPI.UnitTests.FiltersTests
             bool cacheOnlySuccessResponses = true;
             bool isIdempotencyOptional = false;
 
-            // Expected error messages per .NET Target Framework:
-            List<string> expectedExceptionMessages = new List<string>
-            {
-                "An Idempotency header value is not found. (Parameter 'IdempotencyKey')"
-            };
-
-
             IIdempotencyAccessCache distributedCache = MemoryDistributedCacheFixture.CreateCacheInstance(cacheImplementation, accessLockImplementation);
             var idempotencyAttributeFilter = new IdempotencyAttributeFilter(
                 distributedCache,
@@ -427,11 +420,17 @@ namespace IdempotentAPI.UnitTests.FiltersTests
                 isIdempotencyOptional);
 
             // Act
-            var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => idempotencyAttributeFilter.OnActionExecutionAsync(actionExecutingContext,
-                () => Task.FromResult(actionExecutedContext)));
+            await idempotencyAttributeFilter.OnActionExecutionAsync(actionExecutingContext,
+                () => Task.FromResult(actionExecutedContext));
 
-            // Assert (Exception message)
-            Assert.Contains(ex.Message, expectedExceptionMessages);
+            // Assert - Returns 400 Bad Request with ProblemDetails
+            Assert.NotNull(actionExecutingContext.Result);
+            Assert.IsType<BadRequestObjectResult>(actionExecutingContext.Result);
+            var badRequestResult = (BadRequestObjectResult)actionExecutingContext.Result;
+            Assert.IsType<ProblemDetails>(badRequestResult.Value);
+            var problemDetails = (ProblemDetails)badRequestResult.Value!;
+            Assert.Equal(400, problemDetails.Status);
+            Assert.Contains("IdempotencyKey", problemDetails.Detail);
         }
 
         /// <summary>
@@ -440,7 +439,7 @@ namespace IdempotentAPI.UnitTests.FiltersTests
         /// multiple IdempotencyKey as a header variables
         ///
         /// Action:
-        /// Throw an ArgumentException
+        /// Return 400 Bad Request with ProblemDetails
         ///
         /// Background:
         /// Idempotency is performed only for Post and Patch HTTP requests.
@@ -451,7 +450,7 @@ namespace IdempotentAPI.UnitTests.FiltersTests
         [InlineData("PATCH", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
         [InlineData("POST", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
         [InlineData("PATCH", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
-        public async Task ThrowsException_IfMultipleIdempotencyKeyHeaderExistsOnPostAndPatch(string httpMethod, CacheImplementation cacheImplementation, DistributedAccessLockImplementation accessLockImplementation)
+        public async Task Returns400BadRequest_IfMultipleIdempotencyKeyHeaderExistsOnPostAndPatch(string httpMethod, CacheImplementation cacheImplementation, DistributedAccessLockImplementation accessLockImplementation)
         {
             // Arrange
             var requestHeaders = new HeaderDictionary();
@@ -471,12 +470,6 @@ namespace IdempotentAPI.UnitTests.FiltersTests
             bool cacheOnlySuccessResponses = true;
             bool isIdempotencyOptional = false;
 
-            // Expected error messages per .NET Target Framework:
-            List<string> expectedExceptionMessages = new List<string>
-            {
-                "Multiple Idempotency keys were found. (Parameter 'IdempotencyKey')"
-            };
-
             IIdempotencyAccessCache distributedCache = MemoryDistributedCacheFixture.CreateCacheInstance(cacheImplementation, accessLockImplementation);
             var idempotencyAttributeFilter = new IdempotencyAttributeFilter(
                 distributedCache,
@@ -490,11 +483,17 @@ namespace IdempotentAPI.UnitTests.FiltersTests
                 isIdempotencyOptional);
 
             // Act
-            var ex = await Assert.ThrowsAsync<ArgumentException>(() => idempotencyAttributeFilter.OnActionExecutionAsync(actionExecutingContext,
-                () => Task.FromResult(actionExecutedContext)));
+            await idempotencyAttributeFilter.OnActionExecutionAsync(actionExecutingContext,
+                () => Task.FromResult(actionExecutedContext));
 
-            // Assert (Exception message)
-            Assert.Contains(ex.Message, expectedExceptionMessages);
+            // Assert - Returns 400 Bad Request with ProblemDetails
+            Assert.NotNull(actionExecutingContext.Result);
+            Assert.IsType<BadRequestObjectResult>(actionExecutingContext.Result);
+            var badRequestResult = (BadRequestObjectResult)actionExecutingContext.Result;
+            Assert.IsType<ProblemDetails>(badRequestResult.Value);
+            var problemDetails = (ProblemDetails)badRequestResult.Value!;
+            Assert.Equal(400, problemDetails.Status);
+            Assert.Contains("IdempotencyKey", problemDetails.Detail);
         }
 
 

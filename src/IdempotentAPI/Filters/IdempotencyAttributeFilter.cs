@@ -3,6 +3,9 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using IdempotentAPI.AccessCache;
 using IdempotentAPI.Core;
+using IdempotentAPI.Exceptions;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -134,7 +137,22 @@ namespace IdempotentAPI.Filters
                     _serializerOptions);
             }
 
-            await _idempotency.ApplyPreIdempotency(context);
+            try
+            {
+                await _idempotency.ApplyPreIdempotency(context);
+            }
+            catch (IdempotencyKeyValidationException ex)
+            {
+                // Return 400 Bad Request with ProblemDetails for missing/invalid idempotency key
+                context.Result = new BadRequestObjectResult(new ProblemDetails
+                {
+                    Type = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+                    Title = "Bad Request",
+                    Status = StatusCodes.Status400BadRequest,
+                    Detail = ex.Message
+                });
+                return;
+            }
 
             // short-circuit to exit for async filter when result already set
             // https://learn.microsoft.com/en-us/aspnet/core/mvc/controllers/filters?view=aspnetcore-7.0#action-filters
