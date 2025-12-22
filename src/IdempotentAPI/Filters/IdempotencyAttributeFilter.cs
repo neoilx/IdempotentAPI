@@ -1,11 +1,11 @@
 ﻿using System;
+using System.Text.Json;
 using System.Threading.Tasks;
 using IdempotentAPI.AccessCache;
 using IdempotentAPI.Core;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Newtonsoft.Json;
 
 namespace IdempotentAPI.Filters
 {
@@ -20,7 +20,7 @@ namespace IdempotentAPI.Filters
         private readonly bool _isIdempotencyOptional;
         private readonly IIdempotencyAccessCache _distributedCache;
         private readonly ILogger<Idempotency> _logger;
-        private readonly JsonSerializerSettings? _serializerSettings = null;
+        private readonly JsonSerializerOptions? _serializerOptions = null;
 
         private Idempotency? _idempotency = null;
 
@@ -47,7 +47,7 @@ namespace IdempotentAPI.Filters
             TimeSpan? distributedLockTimeout,
             bool cacheOnlySuccessResponses,
             bool isIdempotencyOptional,
-            JsonSerializerSettings? serializerSettings = null)
+            JsonSerializerOptions? serializerOptions = null)
         {
             _distributedCache = distributedCache;
             _enabled = enabled;
@@ -57,7 +57,7 @@ namespace IdempotentAPI.Filters
             _distributedLockTimeout = distributedLockTimeout;
             _cacheOnlySuccessResponses = cacheOnlySuccessResponses;
             _isIdempotencyOptional = isIdempotencyOptional;
-            _serializerSettings = serializerSettings;
+            _serializerOptions = serializerOptions;
 
             if (loggerFactory != null)
             {
@@ -96,7 +96,7 @@ namespace IdempotentAPI.Filters
                     _distributedLockTimeout,
                     _cacheOnlySuccessResponses,
                     _isIdempotencyOptional,
-                    _serializerSettings);
+                    _serializerOptions);
             }
 
             await _idempotency.PrepareIdempotency(context);
@@ -131,7 +131,7 @@ namespace IdempotentAPI.Filters
                     _distributedLockTimeout,
                     _cacheOnlySuccessResponses,
                     _isIdempotencyOptional,
-                    _serializerSettings);
+                    _serializerOptions);
             }
 
             await _idempotency.ApplyPreIdempotency(context);

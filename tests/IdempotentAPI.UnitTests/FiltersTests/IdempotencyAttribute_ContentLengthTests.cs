@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using IdempotentAPI.AccessCache;
@@ -457,6 +458,9 @@ public class IdempotencyAttribute_ContentLengthTests
             "Same idempotency key with same request body should return cached response");
 
         var cachedResult = secondExecutingContext.Result as OkObjectResult;
-        cachedResult!.Value.Should().BeEquivalentTo(expectedModel);
+        // With System.Text.Json, cached values are JsonElement - compare the content (camelCase)
+        var cachedValue = (JsonElement)cachedResult!.Value;
+        cachedValue.GetProperty("id").GetInt32().Should().Be(expectedModel.Id);
+        cachedValue.GetProperty("createdOn").GetDateTime().Should().Be(expectedModel.CreatedOn);
     }
 }

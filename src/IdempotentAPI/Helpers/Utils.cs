@@ -8,14 +8,19 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace IdempotentAPI.Helpers
 {
     public static class Utils
     {
-        private static readonly JsonSerializerSettings _jsonSerializerSettingsAll = new JsonSerializerSettings() { TypeNameHandling = TypeNameHandling.All };
-        private static readonly JsonSerializerSettings _jsonSerializerSettingsAuto = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.Auto };
+        private static readonly JsonSerializerOptions _defaultSerializerOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase, // Match ASP.NET Core's default
+            WriteIndented = false,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
 
         public static string GetHash(HashAlgorithm hashAlgorithm, string input)
         {
@@ -47,23 +52,15 @@ namespace IdempotentAPI.Helpers
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
-        public static byte[]? Serialize(this object obj, JsonSerializerSettings? serializerSettings = null)
+        public static byte[]? Serialize(this object obj, JsonSerializerOptions? serializerOptions = null)
         {
             if (obj is null)
             {
                 return null;
             }
 
-            string jsonString;
-            if (serializerSettings is null)
-            {
-                jsonString = JsonConvert.SerializeObject(obj, _jsonSerializerSettingsAll);
-            }
-            else
-            {
-                serializerSettings.TypeNameHandling = TypeNameHandling.All;
-                jsonString = JsonConvert.SerializeObject(obj, serializerSettings);
-            }
+            var options = serializerOptions ?? _defaultSerializerOptions;
+            string jsonString = JsonSerializer.Serialize(obj, obj.GetType(), options);
 
             byte[] encodedData = Encoding.UTF8.GetBytes(jsonString);
 
@@ -76,7 +73,7 @@ namespace IdempotentAPI.Helpers
         /// <typeparam name="T"></typeparam>
         /// <param name="compressedBytes"></param>
         /// <returns></returns>
-        public static T? DeSerialize<T>(this byte[]? compressedBytes, JsonSerializerSettings? serializerSettings = null)
+        public static T? DeSerialize<T>(this byte[]? compressedBytes, JsonSerializerOptions? serializerOptions = null)
         {
             if (compressedBytes is null)
             {
@@ -86,15 +83,22 @@ namespace IdempotentAPI.Helpers
             byte[]? encodedData = Decompress(compressedBytes);
 
             string jsonString = Encoding.UTF8.GetString(encodedData);
-            if (serializerSettings is null)
+            var options = serializerOptions ?? _defaultSerializerOptions;
+            return JsonSerializer.Deserialize<T>(jsonString, options);
+        }
+
+        /// <summary>
+        /// Serialize object to JSON string.
+        /// </summary>
+        public static string SerializeToJson(this object obj, JsonSerializerOptions? serializerOptions = null)
+        {
+            if (obj is null)
             {
-                return JsonConvert.DeserializeObject<T>(jsonString, _jsonSerializerSettingsAuto);
+                return "null";
             }
-            else
-            {
-                serializerSettings.TypeNameHandling = TypeNameHandling.Auto;
-                return JsonConvert.DeserializeObject<T>(jsonString, serializerSettings);
-            }
+
+            var options = serializerOptions ?? _defaultSerializerOptions;
+            return JsonSerializer.Serialize(obj, obj.GetType(), options);
         }
 
 
@@ -171,6 +175,106 @@ namespace IdempotentAPI.Helpers
                        && (type.Name.StartsWith("<>", StringComparison.OrdinalIgnoreCase) ||
                            type.Name.StartsWith("VB$", StringComparison.OrdinalIgnoreCase))
                        && (type.Attributes & TypeAttributes.NotPublic) == TypeAttributes.NotPublic;
+        }
+
+        /// <summary>
+        /// Gets an integer value from an object that may be a JsonElement or a boxed int.
+        /// </summary>
+        public static int GetInt32(this object obj)
+        {
+            if (obj is JsonElement jsonElement)
+            {
+                return jsonElement.GetInt32();
+            }
+            return Convert.ToInt32(obj);
+        }
+
+        /// <summary>
+        /// Gets a string value from an object that may be a JsonElement or a string.
+        /// </summary>
+        public static string? GetStringValue(this object obj)
+        {
+            if (obj is JsonElement jsonElement)
+            {
+                return jsonElement.GetString();
+            }
+            return obj?.ToString();
+        }
+
+        /// <summary>
+        /// Converts a JsonElement or Dictionary to Dictionary&lt;string, object&gt;.
+        /// </summary>
+        public static Dictionary<string, object> ToDictionaryStringObject(this object obj)
+        {
+            if (obj is JsonElement jsonElement)
+            {
+                var result = new Dictionary<string, object>();
+                foreach (var property in jsonElement.EnumerateObject())
+                {
+                    result[property.Name] = property.Value;
+                }
+                return result;
+            }
+            if (obj is Dictionary<string, object> dict)
+            {
+                return dict;
+            }
+            throw new InvalidCastException($"Cannot convert {obj?.GetType().Name} to Dictionary<string, object>");
+        }
+
+        /// <summary>
+        /// Converts a JsonElement or Dictionary to Dictionary&lt;string, string&gt;.
+        /// </summary>
+        public static Dictionary<string, string> ToDictionaryStringString(this object obj)
+        {
+            if (obj is JsonElement jsonElement)
+            {
+                var result = new Dictionary<string, string>();
+                foreach (var property in jsonElement.EnumerateObject())
+                {
+                    result[property.Name] = property.Value.GetString() ?? string.Empty;
+                }
+                return result;
+            }
+            if (obj is Dictionary<string, string> dict)
+            {
+                return dict;
+            }
+            throw new InvalidCastException($"Cannot convert {obj?.GetType().Name} to Dictionary<string, string>");
+        }
+
+        /// <summary>
+        /// Converts a JsonElement or Dictionary to Dictionary&lt;string, List&lt;string&gt;&gt;.
+        /// </summary>
+        public static Dictionary<string, List<string>>? ToDictionaryStringListString(this object? obj)
+        {
+            if (obj is null)
+            {
+                return null;
+            }
+            if (obj is JsonElement jsonElement)
+            {
+                if (jsonElement.ValueKind == JsonValueKind.Null)
+                {
+                    return null;
+                }
+                var result = new Dictionary<string, List<string>>();
+                foreach (var property in jsonElement.EnumerateObject())
+                {
+                    var list = new List<string>();
+                    foreach (var item in property.Value.EnumerateArray())
+                    {
+                        list.Add(item.GetString() ?? string.Empty);
+                    }
+                    result[property.Name] = list;
+                }
+                return result;
+            }
+            if (obj is Dictionary<string, List<string>> dict)
+            {
+                return dict;
+            }
+            throw new InvalidCastException($"Cannot convert {obj?.GetType().Name} to Dictionary<string, List<string>>");
         }
     }
 }

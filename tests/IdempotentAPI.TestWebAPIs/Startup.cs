@@ -11,9 +11,7 @@ using IdempotentAPI.TestWebAPIs.Extensions;
 using Medallion.Threading;
 using Medallion.Threading.Redis;
 using Microsoft.OpenApi.Models;
-using Newtonsoft.Json;
 using NodaTime;
-using NodaTime.Serialization.JsonNet;
 using NodaTime.Serialization.SystemTextJson;
 using StackExchange.Redis;
 
@@ -44,7 +42,7 @@ namespace IdempotentAPI.TestWebAPIs
             {
                 CacheOnlySuccessResponses = true,
                 DistributedLockTimeoutMilli = 2000,
-                SerializerSettings = new JsonSerializerSettings(){}
+                SerializerOptions = new JsonSerializerOptions()
                     .ConfigureForNodaTime(DateTimeZoneProviders.Tzdb)
             };
 

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using IdempotentAPI.AccessCache;
@@ -18,7 +19,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
-using Newtonsoft.Json;
 
 namespace IdempotentAPI.Core
 {
@@ -48,7 +48,7 @@ namespace IdempotentAPI.Core
         private readonly string _headerKeyName;
         private readonly ILogger<Idempotency>? _logger;
         private readonly bool _isIdempotencyOptional;
-        private readonly JsonSerializerSettings? _serializerSettings = null;
+        private readonly JsonSerializerOptions? _serializerOptions = null;
         private readonly List<Type>? _excludeRequestSpecialTypes = null;
 
         private string _idempotencyKey = string.Empty;
@@ -77,7 +77,7 @@ namespace IdempotentAPI.Core
              TimeSpan? distributedLockTimeout,
              bool cacheOnlySuccessResponses,
              bool isIdempotencyOptional,
-             JsonSerializerSettings? serializerSettings = null,
+             JsonSerializerOptions? serializerOptions = null,
              List<Type>? excludeRequestSpecialTypes = null)
         {
             _distributedCache = distributedCache ?? throw new ArgumentNullException($"An {nameof(IIdempotencyAccessCache)} is not configured. You should register the required services by using the \"AddIdempotentAPIUsing{{YourCacheProvider}}\" function.");
@@ -91,7 +91,7 @@ namespace IdempotentAPI.Core
             _cacheEntryOptions = _distributedCache.CreateCacheEntryOptions(_expiresInMilliseconds);
             _cacheOnlySuccessResponses = cacheOnlySuccessResponses;
             _isIdempotencyOptional = isIdempotencyOptional;
-            _serializerSettings = serializerSettings;
+            _serializerOptions = serializerOptions;
             _excludeRequestSpecialTypes = excludeRequestSpecialTypes;
         }
 
@@ -281,7 +281,7 @@ namespace IdempotentAPI.Core
                 return;
             }
 
-            IReadOnlyDictionary<string, object>? cacheData = cacheDataBytes.DeSerialize<IReadOnlyDictionary<string, object>>(_serializerSettings);
+            IReadOnlyDictionary<string, object>? cacheData = cacheDataBytes.DeSerialize<IReadOnlyDictionary<string, object>>(_serializerOptions);
             if (cacheData is null)
             {
                 throw new Exception("Cannot DeSerialize cached data.");
@@ -309,10 +309,10 @@ namespace IdempotentAPI.Core
 
                 // Set the StatusCode and Response result (based on the IActionResult type)
                 // The response body will be created from a .NET middle-ware in a following step.
-                int responseStatusCode = Convert.ToInt32(cacheData["Response.StatusCode"]);
+                int responseStatusCode = cacheData["Response.StatusCode"].GetInt32();
 
-                Dictionary<string, object> resultObjects = (Dictionary<string, object>)cacheData["Context.Result"];
-                Type contextResultType = Type.GetType(resultObjects["ResultType"].ToString());
+                Dictionary<string, object> resultObjects = cacheData["Context.Result"].ToDictionaryStringObject();
+                Type contextResultType = Type.GetType(resultObjects["ResultType"].GetStringValue());
                 if (contextResultType == null)
                 {
                     throw new NotImplementedException($"ApplyPreIdempotency, ResultType {resultObjects["ResultType"]} is not recognized");
@@ -323,8 +323,8 @@ namespace IdempotentAPI.Core
                 if (contextResultType == typeof(CreatedAtRouteResult))
                 {
                     object value = resultObjects["ResultValue"];
-                    string routeName = (string)resultObjects["ResultRouteName"];
-                    Dictionary<string, string> RouteValues = (Dictionary<string, string>)resultObjects["ResultRouteValues"];
+                    string routeName = resultObjects["ResultRouteName"].GetStringValue() ?? string.Empty;
+                    Dictionary<string, string> RouteValues = resultObjects["ResultRouteValues"].ToDictionaryStringString();
 
                     context.Result = new CreatedAtRouteResult(routeName, RouteValues, value);
                 }
@@ -357,7 +357,7 @@ namespace IdempotentAPI.Core
                 }
 
                 // Include cached headers (if does not exist) at the response:
-                Dictionary<string, List<string>> headerKeyValues = (Dictionary<string, List<string>>)cacheData["Response.Headers"];
+                Dictionary<string, List<string>>? headerKeyValues = cacheData["Response.Headers"].ToDictionaryStringListString();
                 if (headerKeyValues != null)
                 {
                     foreach (KeyValuePair<string, List<string>> headerKeyValue in headerKeyValues)
@@ -491,7 +491,7 @@ namespace IdempotentAPI.Core
             cacheData.Add("Context.Result", resultObjects);
 
 
-            byte[]? serializedCacheData = cacheData.Serialize(_serializerSettings);
+            byte[]? serializedCacheData = cacheData.Serialize(_serializerOptions);
 
             if (serializedCacheData is null)
                 throw new Exception("Cannot Serialize the inFlightCacheData.");
@@ -506,7 +506,7 @@ namespace IdempotentAPI.Core
                 { "Request.Inflight", guid }
             };
 
-            byte[]? serializedCacheData = inFlightCacheData.Serialize(_serializerSettings);
+            byte[]? serializedCacheData = inFlightCacheData.Serialize(_serializerOptions);
             if (serializedCacheData is null)
                 throw new Exception("Cannot Serialize the inFlightCacheData.");
 
@@ -530,7 +530,7 @@ namespace IdempotentAPI.Core
                 requestsData.Add(requestBodyHash);
             }
 
-            return Utils.GetHash(_hashAlgorithm, JsonConvert.SerializeObject(requestsData));
+            return Utils.GetHash(_hashAlgorithm, requestsData.SerializeToJson(_serializerOptions));
         }
 
         private async Task<string> GenerateRequestsBodyHashAsync(HttpRequest httpRequest)
@@ -616,7 +616,7 @@ namespace IdempotentAPI.Core
                 requestsData.Add(httpRequest.Path.ToString());
             }
 
-            return Utils.GetHash(_hashAlgorithm, JsonConvert.SerializeObject(requestsData));
+            return Utils.GetHash(_hashAlgorithm, requestsData.SerializeToJson(_serializerOptions));
         }
 
         private bool IsLoggerEnabled(LogLevel logLevel)
