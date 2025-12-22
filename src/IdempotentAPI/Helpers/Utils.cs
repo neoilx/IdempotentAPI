@@ -276,5 +276,19 @@ namespace IdempotentAPI.Helpers
             }
             throw new InvalidCastException($"Cannot convert {obj?.GetType().Name} to Dictionary<string, List<string>>");
         }
+
+        /// <summary>
+        /// Normalizes a value by converting JsonElement null to C# null.
+        /// When deserializing JSON with System.Text.Json, null values become JsonElement with ValueKind.Null,
+        /// not C# null. This method normalizes such values to C# null.
+        /// </summary>
+        public static object? NormalizeJsonNull(this object? obj)
+        {
+            if (obj is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.Null)
+            {
+                return null;
+            }
+            return obj;
+        }
     }
 }
