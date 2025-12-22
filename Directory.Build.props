@@ -10,7 +10,7 @@
     <PackageProjectUrl>https://github.com/neoilx/IdempotentAPI</PackageProjectUrl>
 
     <!-- Version prefix - patch version is set by CI/CD -->
-    <VersionPrefix>2.7.0</VersionPrefix>
+    <VersionPrefix>3.0.2</VersionPrefix>
 
     <!-- Enable package generation -->
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
