@@ -322,7 +322,8 @@ namespace IdempotentAPI.Core
                 // Initialize the IActionResult based on its type:
                 if (contextResultType == typeof(CreatedAtRouteResult))
                 {
-                    object value = resultObjects["ResultValue"];
+                    // Normalize JsonElement null to C# null to avoid returning "null" string in response body
+                    object? value = resultObjects["ResultValue"].NormalizeJsonNull();
                     string routeName = resultObjects["ResultRouteName"].GetStringValue() ?? string.Empty;
                     Dictionary<string, string> RouteValues = resultObjects["ResultRouteValues"].ToDictionaryStringString();
 
@@ -331,11 +332,12 @@ namespace IdempotentAPI.Core
                 else if (contextResultType.BaseType == typeof(ObjectResult)
                     || contextResultType == typeof(ObjectResult))
                 {
-                    object value = resultObjects["ResultValue"];
+                    // Normalize JsonElement null to C# null to avoid returning "null" string in response body
+                    object? value = resultObjects["ResultValue"].NormalizeJsonNull();
                     ConstructorInfo ctor = contextResultType.GetConstructor(new[] { typeof(object) });
                     if (ctor != null && ctor.DeclaringType != typeof(ObjectResult))
                     {
-                        context.Result = (IActionResult)ctor.Invoke(new object[] { value });
+                        context.Result = (IActionResult)ctor.Invoke(new object?[] { value });
                     }
                     else
                     {

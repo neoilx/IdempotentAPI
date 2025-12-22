@@ -51,7 +51,7 @@ public class IdempotentAPIEndpointFilter : IEndpointFilter
             {
                 var realCallResult = await next(context);
 
-                object? value = string.Empty;
+                object? value = null;
                 if (realCallResult is not IResult)
                 {
                     value = realCallResult;
@@ -71,7 +71,7 @@ public class IdempotentAPIEndpointFilter : IEndpointFilter
             }
             else
             {
-                object? value = string.Empty;
+                object? value = null;
                 if (actionExecutingContext.Result is ObjectResult valueHttpResult)
                 {
                     value = valueHttpResult.Value;
@@ -93,14 +93,16 @@ public class IdempotentAPIEndpointFilter : IEndpointFilter
 
             if (!applyPostIdempotency)
             {
-                return objectResult.Value;
+                // Return Results.Empty for null values to avoid writing "null" to response body
+                return objectResult.Value ?? Results.Empty;
             }
 
             var resultExecutingContext = new ResultExecutingContext(actionContext, filters, objectResult, null!);
 
             await idempotency.ApplyPostIdempotency(resultExecutingContext);
 
-            return objectResult.Value;
+            // Return Results.Empty for null values to avoid writing "null" to response body
+            return objectResult.Value ?? Results.Empty;
         }
         catch
         {

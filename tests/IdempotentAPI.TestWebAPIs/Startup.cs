@@ -43,7 +43,9 @@ namespace IdempotentAPI.TestWebAPIs
                 CacheOnlySuccessResponses = true,
                 DistributedLockTimeoutMilli = 2000,
                 SerializerOptions = new JsonSerializerOptions()
-                    .ConfigureForNodaTime(DateTimeZoneProviders.Tzdb)
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase // Match ASP.NET Core's default
+                }.ConfigureForNodaTime(DateTimeZoneProviders.Tzdb)
             };
 
             // Register the IdempotentAPI Core services.
@@ -52,7 +54,11 @@ namespace IdempotentAPI.TestWebAPIs
             services.AddSwaggerGen(x =>
                 x.SwaggerDoc("v6", new OpenApiInfo { Title = "IdempotentAPI.TestWebAPIs - Swagger", Version = "v6" }));
 
-            services.AddControllers();
+            services.AddControllers()
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.ConfigureForNodaTime(DateTimeZoneProviders.Tzdb);
+                });
 
             // Register the Caching Method:
             var caching = Configuration.GetValue<string>("Caching");
