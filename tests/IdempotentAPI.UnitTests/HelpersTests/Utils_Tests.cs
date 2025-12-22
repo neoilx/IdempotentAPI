@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
+using System.Text.Json;
 using FluentAssertions;
 using IdempotentAPI.Helpers;
 using Microsoft.AspNetCore.Mvc;
@@ -44,13 +45,41 @@ namespace IdempotentAPI.UnitTests.HelpersTests
             // Step 1. Serialize data:
             byte[] serializedData = cacheData.Serialize();
 
-            // Step 1. Deserialize the serialized data:
+            // Step 2. Deserialize the serialized data:
             Dictionary<string, object> cacheDataAfterSerialization =
                 serializedData.DeSerialize<Dictionary<string, object>>();
 
 
             // Assert
-            cacheDataAfterSerialization.Should().BeEquivalentTo(cacheData);
+            // With System.Text.Json, deserialized values are JsonElement when target type is object.
+            // We need to verify the data can be correctly extracted using our helper methods.
+
+            // Verify primitive values
+            cacheDataAfterSerialization["Request.Method"].GetStringValue().Should().Be("POST");
+            cacheDataAfterSerialization["Response.StatusCode"].GetInt32().Should().Be(200);
+
+            // Verify headers dictionary
+            var deserializedHeaders = cacheDataAfterSerialization["Response.Headers"].ToDictionaryStringListString();
+            deserializedHeaders.Should().ContainKey("myHeader1");
+            deserializedHeaders["myHeader1"].Should().BeEquivalentTo(new List<string> { "value1-1", "value1-2" });
+            deserializedHeaders.Should().ContainKey("myHeader2");
+            deserializedHeaders["myHeader2"].Should().BeEquivalentTo(new List<string> { "value2-1", "value2-1" });
+
+            // Verify context result dictionary
+            var deserializedResultObjects = cacheDataAfterSerialization["Context.Result"].ToDictionaryStringObject();
+            deserializedResultObjects["ResultType"].GetStringValue().Should().Be("ResultType");
+
+            // Verify route values
+            var deserializedRouteValues = deserializedResultObjects["ResultRouteValues"].ToDictionaryStringString();
+            deserializedRouteValues["route1"].Should().Be("routeValue1");
+            deserializedRouteValues["route2"].Should().Be("routeValue2");
+
+            // Verify ResultValue is preserved as JsonElement (can be serialized to response)
+            // Dictionary keys are preserved as-is, but object property names use camelCase
+            deserializedResultObjects["ResultValue"].Should().BeOfType<JsonElement>();
+            var resultValueElement = (JsonElement)deserializedResultObjects["ResultValue"];
+            resultValueElement.GetProperty("prop1").GetInt32().Should().Be(1);
+            resultValueElement.GetProperty("prop2").GetString().Should().Be("2");
         }
     }
 }

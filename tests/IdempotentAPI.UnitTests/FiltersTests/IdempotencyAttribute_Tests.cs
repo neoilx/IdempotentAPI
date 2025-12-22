@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using IdempotentAPI.AccessCache;
@@ -860,7 +861,13 @@ namespace IdempotentAPI.UnitTests.FiltersTests
             Assert.NotNull(actionExecutingContext.Result);
 
             Assert.IsType<ObjectResult>(actionExecutingContext.Result);
-            actionExecutingContext.Result.Should().BeEquivalentTo(controllerExecutionResult);
+            // Assert result type matches
+            actionExecutingContext.Result.GetType().Should().Be(controllerExecutionResult.GetType());
+            // With System.Text.Json, cached values are JsonElement - compare the content
+            var cachedValue = (JsonElement)((ObjectResult)actionExecutingContext.Result).Value;
+            var expectedModel = (ResponseModelBasic)controllerExecutionResult.Value;
+            cachedValue.GetProperty("id").GetInt32().Should().Be(expectedModel.Id);
+            cachedValue.GetProperty("createdOn").GetDateTime().Should().Be(expectedModel.CreatedOn);
 
             Assert.Equal((int)expectedResponseStatusCode, ((ObjectResult)actionExecutingContext.Result).StatusCode);
         }
@@ -1201,12 +1208,14 @@ namespace IdempotentAPI.UnitTests.FiltersTests
             //Assert : Part 4
             // The result of the above should be coming from the cache so we should have a result
             Assert.Equal(expectedObjectResultType, inflightExecutingContext.Result.GetType());
-            Assert.Equal(typeof(ResponseModelBasic), ((ObjectResult)inflightExecutingContext.Result).Value.GetType());
+            // With System.Text.Json, cached values come back as JsonElement
+            Assert.Equal(typeof(JsonElement), ((ObjectResult)inflightExecutingContext.Result).Value.GetType());
             Assert.Equal(expectedStatusCode, inflightExecutingContext.HttpContext.Response.StatusCode);
 
 
-            var responseValue = ((ObjectResult)inflightExecutingContext.Result).Value;
-            responseValue.Should().BeEquivalentTo(expectedCachedModel);
+            var responseValue = (JsonElement)((ObjectResult)inflightExecutingContext.Result).Value;
+            responseValue.GetProperty("id").GetInt32().Should().Be(expectedCachedModel.Id);
+            responseValue.GetProperty("createdOn").GetDateTime().Should().Be(expectedCachedModel.CreatedOn);
         }
 
 
@@ -1305,8 +1314,13 @@ namespace IdempotentAPI.UnitTests.FiltersTests
             // Assert (result should not be null)
             actionExecutingContext.Result.Should().NotBeNull();
 
-            // Assert (result should be equal to expected value)
-            actionExecutingContext.Result.Should().BeEquivalentTo(expectedExecutionResult);
+            // Assert (result type should match expected)
+            actionExecutingContext.Result.GetType().Should().Be(expectedExecutionResult.GetType());
+
+            // Assert (result value should be equivalent - with System.Text.Json, cached values are JsonElement)
+            var resultValue = (JsonElement)((ObjectResult)actionExecutingContext.Result).Value;
+            resultValue.GetProperty("id").GetInt32().Should().Be(expectedCachedModel.Id);
+            resultValue.GetProperty("createdOn").GetDateTime().Should().Be(expectedCachedModel.CreatedOn);
 
             // Assert (response headers count)
             actionExecutingContext.HttpContext.Response.Headers.Count.Should().Be(expectedResponseHeadersCount);

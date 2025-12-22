@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using IdempotentAPI.AccessCache;
 using IdempotentAPI.Core;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 
 namespace IdempotentAPI.Filters
 {
@@ -56,7 +56,7 @@ namespace IdempotentAPI.Filters
         /// </summary>
         public bool UseIdempotencyOption { get; set; } = false;
 
-        public JsonSerializerSettings? SerializerSettings { get => null; set => throw new NotImplementedException(); }
+        public JsonSerializerOptions? SerializerOptions { get => null; set => throw new NotImplementedException(); }
         public List<Type>? ExcludeRequestSpecialTypes { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
         public IFilterMetadata CreateInstance(IServiceProvider serviceProvider)
@@ -81,7 +81,7 @@ namespace IdempotentAPI.Filters
                 distributedLockTimeout,
                 idempotencyOptions.CacheOnlySuccessResponses,
                 idempotencyOptions.IsIdempotencyOptional,
-                generalIdempotencyOptions.SerializerSettings);
+                generalIdempotencyOptions.SerializerOptions);
         }
     }
 }
