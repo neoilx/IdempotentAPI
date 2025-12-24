@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using IdempotentAPI.AccessCache;
 using IdempotentAPI.Core;
+using IdempotentAPI.Telemetry;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -63,6 +64,7 @@ namespace IdempotentAPI.Filters
         {
             var distributedCache = (IIdempotencyAccessCache)serviceProvider.GetService(typeof(IIdempotencyAccessCache));
             var loggerFactory = (ILoggerFactory)serviceProvider.GetService(typeof(ILoggerFactory));
+            var metrics = serviceProvider.GetService<IIdempotencyMetrics>();
 
             var generalIdempotencyOptions = serviceProvider.GetRequiredService<IIdempotencyOptions>();
             var idempotencyOptions = UseIdempotencyOption ? generalIdempotencyOptions : this;
@@ -81,7 +83,8 @@ namespace IdempotentAPI.Filters
                 distributedLockTimeout,
                 idempotencyOptions.CacheOnlySuccessResponses,
                 idempotencyOptions.IsIdempotencyOptional,
-                generalIdempotencyOptions.SerializerOptions);
+                generalIdempotencyOptions.SerializerOptions,
+                metrics);
         }
     }
 }

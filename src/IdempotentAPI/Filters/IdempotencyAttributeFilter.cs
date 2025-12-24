@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using IdempotentAPI.AccessCache;
 using IdempotentAPI.Core;
 using IdempotentAPI.Exceptions;
+using IdempotentAPI.Telemetry;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -24,6 +25,7 @@ namespace IdempotentAPI.Filters
         private readonly IIdempotencyAccessCache _distributedCache;
         private readonly ILogger<Idempotency> _logger;
         private readonly JsonSerializerOptions? _serializerOptions = null;
+        private readonly IIdempotencyMetrics? _metrics;
 
         private Idempotency? _idempotency = null;
 
@@ -36,7 +38,8 @@ namespace IdempotentAPI.Filters
             string distributedCacheKeysPrefix,
             TimeSpan? distributedLockTimeout,
             bool cacheOnlySuccessResponses,
-            bool isIdempotencyOptional) : this(distributedCache, loggerFactory, enabled, TimeSpan.FromHours(expireHours).TotalMilliseconds, headerKeyName, distributedCacheKeysPrefix, distributedLockTimeout, cacheOnlySuccessResponses, isIdempotencyOptional)
+            bool isIdempotencyOptional,
+            IIdempotencyMetrics? metrics = null) : this(distributedCache, loggerFactory, enabled, TimeSpan.FromHours(expireHours).TotalMilliseconds, headerKeyName, distributedCacheKeysPrefix, distributedLockTimeout, cacheOnlySuccessResponses, isIdempotencyOptional, null, metrics)
         {
         }
 
@@ -50,7 +53,8 @@ namespace IdempotentAPI.Filters
             TimeSpan? distributedLockTimeout,
             bool cacheOnlySuccessResponses,
             bool isIdempotencyOptional,
-            JsonSerializerOptions? serializerOptions = null)
+            JsonSerializerOptions? serializerOptions = null,
+            IIdempotencyMetrics? metrics = null)
         {
             _distributedCache = distributedCache;
             _enabled = enabled;
@@ -61,6 +65,7 @@ namespace IdempotentAPI.Filters
             _cacheOnlySuccessResponses = cacheOnlySuccessResponses;
             _isIdempotencyOptional = isIdempotencyOptional;
             _serializerOptions = serializerOptions;
+            _metrics = metrics;
 
             if (loggerFactory != null)
             {
@@ -99,7 +104,9 @@ namespace IdempotentAPI.Filters
                     _distributedLockTimeout,
                     _cacheOnlySuccessResponses,
                     _isIdempotencyOptional,
-                    _serializerOptions);
+                    _serializerOptions,
+                    excludeRequestSpecialTypes: null,
+                    metrics: _metrics);
             }
 
             await _idempotency.PrepareIdempotency(context);
@@ -134,7 +141,9 @@ namespace IdempotentAPI.Filters
                     _distributedLockTimeout,
                     _cacheOnlySuccessResponses,
                     _isIdempotencyOptional,
-                    _serializerOptions);
+                    _serializerOptions,
+                    excludeRequestSpecialTypes: null,
+                    metrics: _metrics);
             }
 
             try

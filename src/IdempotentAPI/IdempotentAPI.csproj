@@ -12,6 +12,7 @@
     <!-- For netstandard, use the package reference (brings in transitive dependencies) -->
     <ItemGroup Condition="$(TargetFramework.StartsWith('netstandard'))">
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.5" />
+        <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="8.0.0" />
     </ItemGroup>
 
     <!-- For modern .NET, use the shared framework (no transitive Newtonsoft.Json) -->

@@ -15,6 +15,7 @@ using IdempotentAPI.AccessCache.Exceptions;
 using IdempotentAPI.Exceptions;
 using IdempotentAPI.Extensions;
 using IdempotentAPI.Helpers;
+using IdempotentAPI.Telemetry;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -51,6 +52,7 @@ namespace IdempotentAPI.Core
         private readonly bool _isIdempotencyOptional;
         private readonly JsonSerializerOptions? _serializerOptions = null;
         private readonly List<Type>? _excludeRequestSpecialTypes = null;
+        private readonly IIdempotencyMetrics _metrics;
 
         private string _idempotencyKey = string.Empty;
         private bool _isPreIdempotencyApplied = false;
@@ -79,7 +81,8 @@ namespace IdempotentAPI.Core
              bool cacheOnlySuccessResponses,
              bool isIdempotencyOptional,
              JsonSerializerOptions? serializerOptions = null,
-             List<Type>? excludeRequestSpecialTypes = null)
+             List<Type>? excludeRequestSpecialTypes = null,
+             IIdempotencyMetrics? metrics = null)
         {
             _distributedCache = distributedCache ?? throw new ArgumentNullException($"An {nameof(IIdempotencyAccessCache)} is not configured. You should register the required services by using the \"AddIdempotentAPIUsing{{YourCacheProvider}}\" function.");
             _expiresInMilliseconds = expiresInMilliseconds;
@@ -87,6 +90,7 @@ namespace IdempotentAPI.Core
             _distributedCacheKeysPrefix = distributedCacheKeysPrefix;
             _distributedLockTimeout = distributedLockTimeout;
             _logger = logger;
+            _metrics = metrics ?? NullIdempotencyMetrics.Instance;
 
             _hashAlgorithm = new SHA256CryptoServiceProvider();
             _cacheEntryOptions = _distributedCache.CreateCacheEntryOptions(_expiresInMilliseconds);
@@ -140,7 +144,13 @@ namespace IdempotentAPI.Core
                 catch (DistributedLockNotAcquiredException distributedLockNotAcquiredException)
                 {
                     LogDistributedLockNotAcquiredException("After Controller execution", distributedLockNotAcquiredException);
+                    _metrics.RecordLockFailure("remove");
                 }
+
+                _metrics.RecordNonSuccessSkip(
+                    context.HttpContext.Request.Method,
+                    context.HttpContext.Request.Path.Value ?? string.Empty,
+                    context.HttpContext.Response.StatusCode);
 
                 if (IsLoggerEnabled(LogLevel.Information))
                 {
@@ -161,7 +171,13 @@ namespace IdempotentAPI.Core
             catch (DistributedLockNotAcquiredException distributedLockNotAcquiredException)
             {
                 LogDistributedLockNotAcquiredException("After Controller execution", distributedLockNotAcquiredException);
+                _metrics.RecordLockFailure("set");
+                return;
             }
+
+            _metrics.RecordCacheStore(
+                context.HttpContext.Request.Method,
+                context.HttpContext.Request.Path.Value ?? string.Empty);
 
             if (IsLoggerEnabled(LogLevel.Information))
             {
@@ -277,6 +293,7 @@ namespace IdempotentAPI.Core
             catch (DistributedLockNotAcquiredException distributedLockNotAcquiredException)
             {
                 LogDistributedLockNotAcquiredException("Before Controller", distributedLockNotAcquiredException);
+                _metrics.RecordLockFailure("get_or_set");
 
                 context.Result = new ConflictResult();
                 return;
@@ -304,6 +321,7 @@ namespace IdempotentAPI.Core
                 string currentRequestDataHash = context.HttpContext.GetRequestsDataHash();
                 if (cachedRequestDataHash != currentRequestDataHash)
                 {
+                    _metrics.RecordHashMismatch();
                     context.Result = new BadRequestObjectResult($"The Idempotency header key value '{_idempotencyKey}' was used in a different request.");
                     return;
                 }
@@ -372,11 +390,23 @@ namespace IdempotentAPI.Core
                     }
                 }
 
+                _metrics.RecordCacheHit(
+                    context.HttpContext.Request.Method,
+                    context.HttpContext.Request.Path.Value ?? string.Empty);
+
                 if (IsLoggerEnabled(LogLevel.Information))
                 {
                     _logger.LogInformation("IdempotencyFilterAttribute [Before Controller]: Return result from idempotency cache (of type {contextResultType})", contextResultType.ToString());
                 }
                 _isPreIdempotencyCacheReturned = true;
+            }
+            else
+            {
+                // Cache data contains "Request.Inflight" with matching uniqueRequestId
+                // This means we just set the inflight marker - it's a cache miss (new request)
+                _metrics.RecordCacheMiss(
+                    context.HttpContext.Request.Method,
+                    context.HttpContext.Request.Path.Value ?? string.Empty);
             }
 
             if (IsLoggerEnabled(LogLevel.Information))
@@ -392,6 +422,8 @@ namespace IdempotentAPI.Core
         /// </summary>
         public async Task CancelIdempotency()
         {
+            _metrics.RecordIdempotencyCancelled();
+
             try
             {
                 await _distributedCache.Remove(DistributedCacheKey, _distributedLockTimeout)
@@ -400,6 +432,7 @@ namespace IdempotentAPI.Core
             catch (DistributedLockNotAcquiredException distributedLockNotAcquiredException)
             {
                 LogDistributedLockNotAcquiredException("After Controller execution", distributedLockNotAcquiredException);
+                _metrics.RecordLockFailure("remove");
             }
 
             if (IsLoggerEnabled(LogLevel.Information))

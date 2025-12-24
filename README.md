@@ -84,7 +84,8 @@ The following figure shows a simplified example of the `IdempotentAPI` library f
     - [madelson/DistributedLock](https://github.com/madelson/DistributedLock): Supports multiple technologies such as Redis, SqlServer, Postgres and many [more](https://github.com/madelson/DistributedLock#implementations).
 - 💪**Powerful**: Can be used in high-load scenarios.
 - 🌟 Supports Minimal APIs.
-- ✳ **NEW** ✳ - 🌟 Support [FastEndpoints](https://fast-endpoints.com/), a developer-friendly alternative to Minimal APIs and MVC.
+- 🌟 Support [FastEndpoints](https://fast-endpoints.com/), a developer-friendly alternative to Minimal APIs and MVC.
+- 📊 **Metrics & Telemetry**: Built-in support for metrics using `System.Diagnostics.Metrics`, compatible with OpenTelemetry and other metrics collectors.
 
 
 
@@ -369,6 +370,83 @@ The Idempotent attribute provides a list of options, as shown in the following t
 | IsIdempotencyOptional       | bool     | False             | Set the idempotency as optional to be introduced to existing endpoints easily (which should be backward compatible). |
 
  
+
+### 📊 Metrics & Telemetry (Optional)
+
+The `IdempotentAPI` library includes built-in support for metrics using `System.Diagnostics.Metrics`. These metrics are compatible with [OpenTelemetry](https://opentelemetry.io/) and other .NET metrics collectors without requiring any OpenTelemetry dependencies in the library itself.
+
+#### Enabling Metrics
+
+To enable metrics collection, register the metrics service in your `Program.cs` or `Startup.cs`:
+
+```csharp
+// Register IdempotentAPI core services
+services.AddIdempotentAPI();
+
+// Enable metrics collection (opt-in)
+services.AddIdempotentAPIMetrics();
+
+// Register your cache implementation
+services.AddIdempotentAPIUsingDistributedCache();
+```
+
+#### Available Metrics
+
+The following metrics are available under the meter name `IdempotentAPI`:
+
+| Metric Name | Type | Description |
+|-------------|------|-------------|
+| `idempotentapi.cache.hits` | Counter | Number of responses served from cache |
+| `idempotentapi.cache.misses` | Counter | Number of new requests (cache miss, controller executed) |
+| `idempotentapi.cache.stores` | Counter | Number of responses stored in cache |
+| `idempotentapi.lock.failures` | Counter | Number of distributed lock acquisition failures |
+| `idempotentapi.hash.mismatches` | Counter | Number of hash mismatches (same key, different request data) |
+| `idempotentapi.cache.skips` | Counter | Number of responses not cached due to non-success status |
+| `idempotentapi.cancelled` | Counter | Number of operations cancelled due to exceptions |
+
+All metrics include relevant tags such as `http.request.method` and `url.path` for filtering and grouping.
+
+#### Using with OpenTelemetry
+
+To collect and export these metrics using OpenTelemetry, add the `IdempotentAPI` meter to your OpenTelemetry configuration:
+
+```csharp
+// Register IdempotentAPI with metrics
+services.AddIdempotentAPI();
+services.AddIdempotentAPIMetrics();
+services.AddIdempotentAPIUsingDistributedCache();
+
+// Configure OpenTelemetry to collect IdempotentAPI metrics
+services.AddOpenTelemetry()
+    .WithMetrics(metrics =>
+    {
+        metrics.AddMeter("IdempotentAPI");
+        // Add your preferred exporter (Prometheus, OTLP, etc.)
+        metrics.AddPrometheusExporter();
+    });
+```
+
+#### Using with .NET MeterListener
+
+You can also collect metrics using the built-in .NET `MeterListener` without OpenTelemetry:
+
+```csharp
+var listener = new MeterListener();
+listener.InstrumentPublished = (instrument, listener) =>
+{
+    if (instrument.Meter.Name == "IdempotentAPI")
+    {
+        listener.EnableMeasurementEvents(instrument);
+    }
+};
+listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) =>
+{
+    Console.WriteLine($"{instrument.Name}: {measurement}");
+});
+listener.Start();
+```
+
+
 
 ### 📚 The Source Code (IdempotentAPI)
 
