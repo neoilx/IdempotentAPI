@@ -1,6 +1,7 @@
 ﻿using System;
 using IdempotentAPI.AccessCache;
 using IdempotentAPI.Core;
+using IdempotentAPI.Telemetry;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -24,6 +25,7 @@ namespace IdempotentAPI.MinimalAPI.Extensions.DependencyInjection
             {
                 var distributedCache = serviceProvider.GetRequiredService<IIdempotencyAccessCache>();
                 var logger = serviceProvider.GetRequiredService<ILogger<Idempotency>>();
+                var metrics = serviceProvider.GetService<IIdempotencyMetrics>();
 
                 var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
                 var idempotencyOptions = idempotencyOptionsProvider.GetIdempotencyOptions(httpContextAccessor);
@@ -37,7 +39,9 @@ namespace IdempotentAPI.MinimalAPI.Extensions.DependencyInjection
                     TimeSpan.FromMilliseconds(idempotencyOptions.DistributedLockTimeoutMilli),
                     idempotencyOptions.CacheOnlySuccessResponses,
                     idempotencyOptions.IsIdempotencyOptional,
-                    excludeRequestSpecialTypes: idempotencyOptions.ExcludeRequestSpecialTypes);
+                    serializerOptions: null,
+                    excludeRequestSpecialTypes: idempotencyOptions.ExcludeRequestSpecialTypes,
+                    metrics: metrics);
             });
 
             return serviceCollection;

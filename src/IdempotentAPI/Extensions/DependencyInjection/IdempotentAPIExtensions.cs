@@ -1,6 +1,7 @@
 ﻿using System;
 using IdempotentAPI.AccessCache;
 using IdempotentAPI.Core;
+using IdempotentAPI.Telemetry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -35,6 +36,29 @@ namespace IdempotentAPI.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Register metrics collection for IdempotentAPI using System.Diagnostics.Metrics.
+        /// These metrics are compatible with OpenTelemetry when you add the "IdempotentAPI" meter.
+        /// </summary>
+        /// <param name="serviceCollection"></param>
+        /// <returns></returns>
+        /// <example>
+        /// <code>
+        /// // Register metrics
+        /// services.AddIdempotentAPIMetrics();
+        ///
+        /// // Configure OpenTelemetry to collect metrics
+        /// services.AddOpenTelemetry()
+        ///     .WithMetrics(m => m.AddMeter("IdempotentAPI"));
+        /// </code>
+        /// </example>
+        public static IServiceCollection AddIdempotentAPIMetrics(this IServiceCollection serviceCollection)
+        {
+            serviceCollection.AddSingleton<IIdempotencyMetrics, IdempotencyMetrics>();
+
+            return serviceCollection;
+        }
+
+        /// <summary>
         /// Register the Core services that are required by the IdempotentAPI for Minimal APIs.
         /// </summary>
         /// <param name="serviceCollection"></param>
@@ -49,6 +73,7 @@ namespace IdempotentAPI.Extensions.DependencyInjection
                 var distributedCache = serviceProvider.GetRequiredService<IIdempotencyAccessCache>();
                 var logger = serviceProvider.GetRequiredService<ILogger<Idempotency>>();
                 var idempotencyOptions = serviceProvider.GetRequiredService<IIdempotencyOptions>();
+                var metrics = serviceProvider.GetService<IIdempotencyMetrics>();
 
                 return new Idempotency(
                     distributedCache,
@@ -60,7 +85,8 @@ namespace IdempotentAPI.Extensions.DependencyInjection
                     idempotencyOptions.CacheOnlySuccessResponses,
                     idempotencyOptions.IsIdempotencyOptional,
                     idempotencyOptions.SerializerOptions,
-                    idempotencyOptions.ExcludeRequestSpecialTypes    
+                    idempotencyOptions.ExcludeRequestSpecialTypes,
+                    metrics
                 );
             });
 
