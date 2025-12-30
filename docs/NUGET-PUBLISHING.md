@@ -4,19 +4,19 @@ This repository publishes packages to NuGet.org using **Trusted Publishing** wit
 
 ## Package Names
 
-All packages are published under the `Neoilx.` prefix to distinguish from the upstream project:
+All packages are published under the `NEOilx.` prefix to distinguish from the upstream project:
 
 | Package |
 |---------|
-| Neoilx.IdempotentAPI |
-| Neoilx.IdempotentAPI.AccessCache |
-| Neoilx.IdempotentAPI.Cache.Abstractions |
-| Neoilx.IdempotentAPI.Cache.DistributedCache |
-| Neoilx.IdempotentAPI.Cache.FusionCache |
-| Neoilx.IdempotentAPI.DistributedAccessLock.Abstractions |
-| Neoilx.IdempotentAPI.DistributedAccessLock.MadelsonDistributedLock |
-| Neoilx.IdempotentAPI.DistributedAccessLock.RedLockNet |
-| Neoilx.IdempotentAPI.MinimalAPI |
+| NEOilx.IdempotentAPI |
+| NEOilx.IdempotentAPI.AccessCache |
+| NEOilx.IdempotentAPI.Cache.Abstractions |
+| NEOilx.IdempotentAPI.Cache.DistributedCache |
+| NEOilx.IdempotentAPI.Cache.FusionCache |
+| NEOilx.IdempotentAPI.DistributedAccessLock.Abstractions |
+| NEOilx.IdempotentAPI.DistributedAccessLock.MadelsonDistributedLock |
+| NEOilx.IdempotentAPI.DistributedAccessLock.RedLockNet |
+| NEOilx.IdempotentAPI.MinimalAPI |
 
 ## How to Publish a Release
 

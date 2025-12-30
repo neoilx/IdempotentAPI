@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<PackageId>Neoilx.IdempotentAPI.MinimalAPI</PackageId>
+		<PackageId>NEOilx.IdempotentAPI.MinimalAPI</PackageId>
 		<TargetFramework>net8.0</TargetFramework>
 		<Description>IdempotentAPI support in Minimal APIs.</Description>
 		<PackageTags>cache;idempotent api;idempotency;asp.net core;attribute;middleware;rest</PackageTags>

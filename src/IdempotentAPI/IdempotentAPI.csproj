@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <PackageId>Neoilx.IdempotentAPI</PackageId>
+        <PackageId>NEOilx.IdempotentAPI</PackageId>
         <TargetFrameworks>netstandard2.0;netstandard2.1;net8.0</TargetFrameworks>
         <Description>IdempotentAPI is an ASP.NET Core attribute by which any HTTP write operations (POST and PATCH) can have effect only once for the given request data. (neoilx fork with ContentLength fix)</Description>
         <PackageTags>idempotent api;idempotency;asp.net core;attribute;middleware;rest</PackageTags>
