@@ -499,13 +499,13 @@ namespace IdempotentAPI.UnitTests.FiltersTests
 
         /// <summary>
         /// Scenario:
-        /// The Idempotency Attribute is enabled, receiving a Non-(POST or PATCH) request
+        /// The Idempotency Attribute is enabled, receiving a Non-(POST, PUT or PATCH) request
         ///
         /// Action:
         /// Don't do anything! The ContextResult remains Null.
         ///
         /// Background:
-        /// Idempotency is performed only for Post and Patch HTTP requests.
+        /// Idempotency is performed only for Post, Put and Patch HTTP requests.
         /// </summary>
         /// <param name="httpMethod"></param>
         [Theory]
@@ -514,16 +514,14 @@ namespace IdempotentAPI.UnitTests.FiltersTests
         [InlineData("DELETE", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
         [InlineData("HEAD", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
         [InlineData("OPTIONS", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
-        [InlineData("PUT", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
         [InlineData("TRACE", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
         [InlineData("GET", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
         [InlineData("CONNECT", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
         [InlineData("DELETE", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
         [InlineData("HEAD", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
         [InlineData("OPTIONS", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
-        [InlineData("PUT", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
         [InlineData("TRACE", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
-        public async Task SetsContextResultToNull_IfHttpRequestMethodIsNotPostOrPatch(string httpMethod, CacheImplementation cacheImplementation, DistributedAccessLockImplementation accessLockImplementation)
+        public async Task SetsContextResultToNull_IfHttpRequestMethodIsNotPostPutOrPatch(string httpMethod, CacheImplementation cacheImplementation, DistributedAccessLockImplementation accessLockImplementation)
         {
             // Arrange
             var actionContext = ArrangeActionContextMock(httpMethod);
