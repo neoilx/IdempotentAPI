@@ -92,43 +92,6 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  publish-github:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    permissions:
-      packages: write
-      contents: read
-
-    steps:
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
-
-      - name: Download NuGet packages
-        uses: actions/download-artifact@v4
-        with:
-          name: nuget-packages
-          path: ${{ env.NuGetDirectory }}
-
-      - name: Download Symbol packages
-        uses: actions/download-artifact@v4
-        with:
-          name: nuget-symbols
-          path: ${{ env.NuGetDirectory }}
-        continue-on-error: true
-
-      - name: Publish to GitHub Packages
-        run: |
-          for package in ${{ env.NuGetDirectory }}/*.nupkg; do
-            echo "Publishing $package"
-            dotnet nuget push "$package" \
-              --api-key ${{ secrets.GITHUB_TOKEN }} \
-              --source "https://nuget.pkg.github.com/neoilx/index.json" \
-              --skip-duplicate
-          done
-
   publish-nuget:
     needs: build
     runs-on: ubuntu-latest
