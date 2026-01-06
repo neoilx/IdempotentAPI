@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using IdempotentAPI.AccessCache;
@@ -17,6 +17,8 @@ namespace IdempotentAPI.Filters
     public class IdempotentAttribute : Attribute, IFilterFactory, IIdempotencyOptions
     {
         private TimeSpan _expiresIn = DefaultIdempotencyOptions.ExpiresIn;
+        private bool _cacheOnlySuccessResponses = DefaultIdempotencyOptions.CacheOnlySuccessResponses;
+        private bool _isIdempotencyOptional = DefaultIdempotencyOptions.IsIdempotencyOptional;
 
         public bool IsReusable => false;
 
@@ -43,13 +45,35 @@ namespace IdempotentAPI.Filters
         public string HeaderKeyName { get; set; } = DefaultIdempotencyOptions.HeaderKeyName;
 
         ///<inheritdoc/>
-        public bool CacheOnlySuccessResponses { get; set; } = DefaultIdempotencyOptions.CacheOnlySuccessResponses;
+        public bool CacheOnlySuccessResponses
+        {
+            get => _cacheOnlySuccessResponses;
+            set
+            {
+                _cacheOnlySuccessResponses = value;
+                CacheOnlySuccessResponsesSpecified = true;
+            }
+        }
+
+        ///<inheritdoc/>
+        public bool CacheOnlySuccessResponsesSpecified { get; private set; }
 
         ///<inheritdoc/>
         public double DistributedLockTimeoutMilli { get; set; } = DefaultIdempotencyOptions.DistributedLockTimeoutMilli;
 
         ///<inheritdoc/>
-        public bool IsIdempotencyOptional { get; set; } = DefaultIdempotencyOptions.IsIdempotencyOptional;
+        public bool IsIdempotencyOptional
+        {
+            get => _isIdempotencyOptional;
+            set
+            {
+                _isIdempotencyOptional = value;
+                IsIdempotencyOptionalSpecified = true;
+            }
+        }
+
+        ///<inheritdoc/>
+        public bool IsIdempotencyOptionalSpecified { get; private set; }
 
         /// <summary>
         /// By default, idempotency settings are taken from the attribute properties.
@@ -73,6 +97,16 @@ namespace IdempotentAPI.Filters
                 ? TimeSpan.FromMilliseconds(idempotencyOptions.DistributedLockTimeoutMilli)
                 : null;
 
+            // When UseIdempotencyOption is true, use global options as the base,
+            // but allow attribute-level overrides for explicitly set properties.
+            var cacheOnlySuccessResponses = UseIdempotencyOption && !CacheOnlySuccessResponsesSpecified
+                ? generalIdempotencyOptions.CacheOnlySuccessResponses
+                : CacheOnlySuccessResponses;
+
+            var isIdempotencyOptional = UseIdempotencyOption && !IsIdempotencyOptionalSpecified
+                ? generalIdempotencyOptions.IsIdempotencyOptional
+                : IsIdempotencyOptional;
+
             return new IdempotencyAttributeFilter(
                 distributedCache,
                 loggerFactory,
@@ -81,8 +115,8 @@ namespace IdempotentAPI.Filters
                 idempotencyOptions.HeaderKeyName,
                 idempotencyOptions.DistributedCacheKeysPrefix,
                 distributedLockTimeout,
-                idempotencyOptions.CacheOnlySuccessResponses,
-                idempotencyOptions.IsIdempotencyOptional,
+                cacheOnlySuccessResponses,
+                isIdempotencyOptional,
                 generalIdempotencyOptions.SerializerOptions,
                 metrics);
         }

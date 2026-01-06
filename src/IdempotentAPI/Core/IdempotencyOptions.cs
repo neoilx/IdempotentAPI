@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text.Json;
 
@@ -7,6 +7,8 @@ namespace IdempotentAPI.Core
     public class IdempotencyOptions : IIdempotencyOptions
     {
         private TimeSpan _expiresIn = DefaultIdempotencyOptions.ExpiresIn;
+        private bool _cacheOnlySuccessResponses = DefaultIdempotencyOptions.CacheOnlySuccessResponses;
+        private bool _isIdempotencyOptional = DefaultIdempotencyOptions.IsIdempotencyOptional;
 
         ///<inheritdoc/>
         public int ExpireHours
@@ -29,13 +31,35 @@ namespace IdempotentAPI.Core
         public string HeaderKeyName { get; set; } = DefaultIdempotencyOptions.HeaderKeyName;
 
         ///<inheritdoc/>
-        public bool CacheOnlySuccessResponses { get; set; } = DefaultIdempotencyOptions.CacheOnlySuccessResponses;
+        public bool CacheOnlySuccessResponses
+        {
+            get => _cacheOnlySuccessResponses;
+            set
+            {
+                _cacheOnlySuccessResponses = value;
+                CacheOnlySuccessResponsesSpecified = true;
+            }
+        }
+
+        ///<inheritdoc/>
+        public bool CacheOnlySuccessResponsesSpecified { get; private set; }
 
         ///<inheritdoc/>
         public double DistributedLockTimeoutMilli { get; set; } = DefaultIdempotencyOptions.DistributedLockTimeoutMilli;
 
         ///<inheritdoc/>
-        public bool IsIdempotencyOptional { get; set; } = DefaultIdempotencyOptions.IsIdempotencyOptional;
+        public bool IsIdempotencyOptional
+        {
+            get => _isIdempotencyOptional;
+            set
+            {
+                _isIdempotencyOptional = value;
+                IsIdempotencyOptionalSpecified = true;
+            }
+        }
+
+        ///<inheritdoc/>
+        public bool IsIdempotencyOptionalSpecified { get; private set; }
 
         public JsonSerializerOptions? SerializerOptions { get; set; }
 
