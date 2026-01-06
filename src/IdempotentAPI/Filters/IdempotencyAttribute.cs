@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 namespace IdempotentAPI.Filters
 {
     /// <summary>
-    /// Use Idempotent operations on POST and PATCH HTTP methods
+    /// Use Idempotent operations on POST, PUT and PATCH HTTP methods
     /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
     public class IdempotentAttribute : Attribute, IFilterFactory, IIdempotencyOptions

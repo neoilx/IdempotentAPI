@@ -449,8 +449,9 @@ namespace IdempotentAPI.Core
                 throw new Exception("An IDistributedCache is not configured.");
             }
 
-            // Idempotency is applied on Post & Patch HTTP methods:
+            // Idempotency is applied on Post, Put & Patch HTTP methods:
             if (httpRequest.Method != HttpMethods.Post
+                && httpRequest.Method != HttpMethods.Put
                 && httpRequest.Method != HttpMethods.Patch)
             {
                 return false;
