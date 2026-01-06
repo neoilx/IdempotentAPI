@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text.Json;
 
@@ -20,10 +20,17 @@ namespace IdempotentAPI.Core
         public string DistributedCacheKeysPrefix { get; set; }
 
         public string HeaderKeyName { get; set; }
+
         /// <summary>
         /// When true, only the responses with 2xx HTTP status codes will be cached.
         /// </summary>
         public bool CacheOnlySuccessResponses { get; set; }
+
+        /// <summary>
+        /// Indicates whether <see cref="CacheOnlySuccessResponses"/> was explicitly set.
+        /// Used to determine if an attribute-level value should override global options.
+        /// </summary>
+        public bool CacheOnlySuccessResponsesSpecified { get; }
 
         /// <summary>
         /// The time the distributed lock will wait for the lock to be acquired (in milliseconds).
@@ -37,6 +44,12 @@ namespace IdempotentAPI.Core
         /// system, which should be backward compatible.
         /// </summary>
         public bool IsIdempotencyOptional { get; set; }
+
+        /// <summary>
+        /// Indicates whether <see cref="IsIdempotencyOptional"/> was explicitly set.
+        /// Used to determine if an attribute-level value should override global options.
+        /// </summary>
+        public bool IsIdempotencyOptionalSpecified { get; }
 
         public JsonSerializerOptions? SerializerOptions { get; set; }
 
