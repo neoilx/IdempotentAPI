@@ -505,23 +505,21 @@ namespace IdempotentAPI.UnitTests.FiltersTests
         /// Don't do anything! The ContextResult remains Null.
         ///
         /// Background:
-        /// Idempotency is performed only for Post, Put and Patch HTTP requests.
+        /// Idempotency is performed only for Post, Put, Patch and Delete HTTP requests.
         /// </summary>
         /// <param name="httpMethod"></param>
         [Theory]
         [InlineData("GET", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
         [InlineData("CONNECT", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
-        [InlineData("DELETE", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
         [InlineData("HEAD", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
         [InlineData("OPTIONS", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
         [InlineData("TRACE", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
         [InlineData("GET", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
         [InlineData("CONNECT", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
-        [InlineData("DELETE", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
         [InlineData("HEAD", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
         [InlineData("OPTIONS", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
         [InlineData("TRACE", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
-        public async Task SetsContextResultToNull_IfHttpRequestMethodIsNotPostPutOrPatch(string httpMethod, CacheImplementation cacheImplementation, DistributedAccessLockImplementation accessLockImplementation)
+        public async Task SetsContextResultToNull_IfHttpRequestMethodIsNotPostPutPatchOrDelete(string httpMethod, CacheImplementation cacheImplementation, DistributedAccessLockImplementation accessLockImplementation)
         {
             // Arrange
             var actionContext = ArrangeActionContextMock(httpMethod);
