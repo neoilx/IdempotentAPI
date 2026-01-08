@@ -52,6 +52,7 @@ namespace IdempotentAPI.Core
         private readonly bool _isIdempotencyOptional;
         private readonly JsonSerializerOptions? _serializerOptions = null;
         private readonly List<Type>? _excludeRequestSpecialTypes = null;
+        private readonly bool _useProblemDetailsForErrors;
         private readonly IIdempotencyMetrics _metrics;
 
         private string _idempotencyKey = string.Empty;
@@ -82,6 +83,7 @@ namespace IdempotentAPI.Core
              bool isIdempotencyOptional,
              JsonSerializerOptions? serializerOptions = null,
              List<Type>? excludeRequestSpecialTypes = null,
+             bool useProblemDetailsForErrors = false,
              IIdempotencyMetrics? metrics = null)
         {
             _distributedCache = distributedCache ?? throw new ArgumentNullException($"An {nameof(IIdempotencyAccessCache)} is not configured. You should register the required services by using the \"AddIdempotentAPIUsing{{YourCacheProvider}}\" function.");
@@ -98,6 +100,7 @@ namespace IdempotentAPI.Core
             _isIdempotencyOptional = isIdempotencyOptional;
             _serializerOptions = serializerOptions;
             _excludeRequestSpecialTypes = excludeRequestSpecialTypes;
+            _useProblemDetailsForErrors = useProblemDetailsForErrors;
         }
 
         private string DistributedCacheKey
@@ -322,7 +325,22 @@ namespace IdempotentAPI.Core
                 if (cachedRequestDataHash != currentRequestDataHash)
                 {
                     _metrics.RecordHashMismatch();
-                    context.Result = new BadRequestObjectResult($"The Idempotency header key value '{_idempotencyKey}' was used in a different request.");
+
+                    if (_useProblemDetailsForErrors)
+                    {
+                        context.Result = new BadRequestObjectResult(new ProblemDetails
+                        {
+                            Type = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+                            Title = "Bad Request",
+                            Status = StatusCodes.Status400BadRequest,
+                            Detail = $"The Idempotency header key value '{_idempotencyKey}' was used in a different request.",
+                            Instance = context.HttpContext.Request.Path
+                        });
+                    }
+                    else
+                    {
+                        context.Result = new BadRequestObjectResult($"The Idempotency header key value '{_idempotencyKey}' was used in a different request.");
+                    }
                     return;
                 }
 

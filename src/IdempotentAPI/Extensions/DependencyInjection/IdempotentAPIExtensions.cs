@@ -86,6 +86,7 @@ namespace IdempotentAPI.Extensions.DependencyInjection
                     idempotencyOptions.IsIdempotencyOptional,
                     idempotencyOptions.SerializerOptions,
                     idempotencyOptions.ExcludeRequestSpecialTypes,
+                    idempotencyOptions.UseProblemDetailsForErrors,
                     metrics
                 );
             });

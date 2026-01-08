@@ -84,6 +84,9 @@ namespace IdempotentAPI.Filters
         public JsonSerializerOptions? SerializerOptions { get => null; set => throw new NotImplementedException(); }
         public List<Type>? ExcludeRequestSpecialTypes { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
+        ///<inheritdoc/>
+        public bool UseProblemDetailsForErrors { get; set; } = DefaultIdempotencyOptions.UseProblemDetailsForErrors;
+
         public IFilterMetadata CreateInstance(IServiceProvider serviceProvider)
         {
             var distributedCache = (IIdempotencyAccessCache)serviceProvider.GetService(typeof(IIdempotencyAccessCache));
@@ -107,6 +110,11 @@ namespace IdempotentAPI.Filters
                 ? generalIdempotencyOptions.IsIdempotencyOptional
                 : IsIdempotencyOptional;
 
+            // When UseIdempotencyOption is true, use global options; otherwise use attribute-level settings
+            var useProblemDetailsForErrors = UseIdempotencyOption
+                ? generalIdempotencyOptions.UseProblemDetailsForErrors
+                : UseProblemDetailsForErrors;
+
             return new IdempotencyAttributeFilter(
                 distributedCache,
                 loggerFactory,
@@ -118,6 +126,7 @@ namespace IdempotentAPI.Filters
                 cacheOnlySuccessResponses,
                 isIdempotencyOptional,
                 generalIdempotencyOptions.SerializerOptions,
+                useProblemDetailsForErrors,
                 metrics);
         }
     }
