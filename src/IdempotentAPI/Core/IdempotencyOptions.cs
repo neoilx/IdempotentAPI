@@ -65,5 +65,8 @@ namespace IdempotentAPI.Core
 
         ///<inheritdoc/>
         public List<Type>? ExcludeRequestSpecialTypes { get; set; }
+
+        ///<inheritdoc/>
+        public bool UseProblemDetailsForErrors { get; set; } = DefaultIdempotencyOptions.UseProblemDetailsForErrors;
     }
 }

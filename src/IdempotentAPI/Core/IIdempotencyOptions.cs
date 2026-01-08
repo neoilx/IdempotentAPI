@@ -59,5 +59,12 @@ namespace IdempotentAPI.Core
         /// data hash.
         /// </summary>
         public List<Type>? ExcludeRequestSpecialTypes { get; set; }
+
+        /// <summary>
+        /// When true, returns ProblemDetails JSON responses instead of plain text for idempotency errors
+        /// (e.g., hash mismatch when same idempotency key is used with different request payload).
+        /// Default is false to preserve backward compatibility.
+        /// </summary>
+        public bool UseProblemDetailsForErrors { get; set; }
     }
 }

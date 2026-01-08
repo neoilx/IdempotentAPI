@@ -25,6 +25,7 @@ namespace IdempotentAPI.Filters
         private readonly IIdempotencyAccessCache _distributedCache;
         private readonly ILogger<Idempotency> _logger;
         private readonly JsonSerializerOptions? _serializerOptions = null;
+        private readonly bool _useProblemDetailsForErrors;
         private readonly IIdempotencyMetrics? _metrics;
 
         private Idempotency? _idempotency = null;
@@ -39,7 +40,7 @@ namespace IdempotentAPI.Filters
             TimeSpan? distributedLockTimeout,
             bool cacheOnlySuccessResponses,
             bool isIdempotencyOptional,
-            IIdempotencyMetrics? metrics = null) : this(distributedCache, loggerFactory, enabled, TimeSpan.FromHours(expireHours).TotalMilliseconds, headerKeyName, distributedCacheKeysPrefix, distributedLockTimeout, cacheOnlySuccessResponses, isIdempotencyOptional, null, metrics)
+            IIdempotencyMetrics? metrics = null) : this(distributedCache, loggerFactory, enabled, TimeSpan.FromHours(expireHours).TotalMilliseconds, headerKeyName, distributedCacheKeysPrefix, distributedLockTimeout, cacheOnlySuccessResponses, isIdempotencyOptional, serializerOptions: null, useProblemDetailsForErrors: false, metrics)
         {
         }
 
@@ -54,6 +55,7 @@ namespace IdempotentAPI.Filters
             bool cacheOnlySuccessResponses,
             bool isIdempotencyOptional,
             JsonSerializerOptions? serializerOptions = null,
+            bool useProblemDetailsForErrors = false,
             IIdempotencyMetrics? metrics = null)
         {
             _distributedCache = distributedCache;
@@ -65,6 +67,7 @@ namespace IdempotentAPI.Filters
             _cacheOnlySuccessResponses = cacheOnlySuccessResponses;
             _isIdempotencyOptional = isIdempotencyOptional;
             _serializerOptions = serializerOptions;
+            _useProblemDetailsForErrors = useProblemDetailsForErrors;
             _metrics = metrics;
 
             if (loggerFactory != null)
@@ -106,6 +109,7 @@ namespace IdempotentAPI.Filters
                     _isIdempotencyOptional,
                     _serializerOptions,
                     excludeRequestSpecialTypes: null,
+                    useProblemDetailsForErrors: _useProblemDetailsForErrors,
                     metrics: _metrics);
             }
 
@@ -143,6 +147,7 @@ namespace IdempotentAPI.Filters
                     _isIdempotencyOptional,
                     _serializerOptions,
                     excludeRequestSpecialTypes: null,
+                    useProblemDetailsForErrors: _useProblemDetailsForErrors,
                     metrics: _metrics);
             }
 

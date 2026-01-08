@@ -15,5 +15,7 @@ namespace IdempotentAPI.Core
         public const double DistributedLockTimeoutMilli = -1;
 
         public const bool IsIdempotencyOptional = false;
+
+        public const bool UseProblemDetailsForErrors = false;
     }
 }

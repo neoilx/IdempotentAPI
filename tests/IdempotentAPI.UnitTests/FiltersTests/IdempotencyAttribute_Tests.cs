@@ -1620,5 +1620,231 @@ namespace IdempotentAPI.UnitTests.FiltersTests
             }
         }
 
+        #region Hash Mismatch ProblemDetails Tests
+
+        /// <summary>
+        /// When UseProblemDetailsForErrors is false (default), the hash mismatch error
+        /// should return a BadRequestObjectResult with a plain string message.
+        /// </summary>
+        [Theory]
+        [InlineData("POST", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
+        [InlineData("PATCH", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
+        [InlineData("PUT", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
+        [InlineData("DELETE", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
+        [InlineData("POST", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
+        public async Task HashMismatch_WhenUseProblemDetailsIsFalse_ReturnsPlainStringBadRequest(
+            string httpMethod,
+            CacheImplementation cacheImplementation,
+            DistributedAccessLockImplementation accessLockImplementation)
+        {
+            // Arrange
+            var idempotencyKey = Guid.NewGuid().ToString();
+            var requestHeaders = new HeaderDictionary
+            {
+                { "Content-Type", "application/json" },
+                { _headerKeyName, idempotencyKey }
+            };
+
+            string firstRequestBody = @"{""message"":""First message""}";
+            string secondRequestBody = @"{""message"":""Different message""}";
+
+            var expectedModel = new ResponseModelBasic
+            {
+                Id = 1,
+                CreatedOn = new DateTime(2019, 10, 12, 5, 25, 25)
+            };
+            var controllerResult = new OkObjectResult(expectedModel);
+
+            // First request context
+            var firstActionContext = ArrangeActionContextMock(
+                httpMethod, requestHeaders, firstRequestBody,
+                new HeaderDictionary(), controllerResult, StatusCodes.Status200OK);
+
+            var firstExecutingContext = new ActionExecutingContext(
+                firstActionContext,
+                new List<IFilterMetadata>(),
+                new Dictionary<string, object>(),
+                Mock.Of<Controller>());
+            var firstExecutedContext = CreateActionExecutedContext(firstActionContext);
+            var firstResultExecutingContext = CreateResultExecutingContext(firstActionContext, controllerResult);
+            var firstResultExecutedContext = CreateResultExecutedContext(firstActionContext, controllerResult);
+
+            // Second request context with DIFFERENT body
+            var secondActionContext = ArrangeActionContextMock(
+                httpMethod, requestHeaders, secondRequestBody,
+                new HeaderDictionary(), controllerResult, StatusCodes.Status200OK);
+
+            var secondExecutingContext = new ActionExecutingContext(
+                secondActionContext,
+                new List<IFilterMetadata>(),
+                new Dictionary<string, object>(),
+                Mock.Of<Controller>());
+            var secondExecutedContext = CreateActionExecutedContext(secondActionContext);
+
+            IIdempotencyAccessCache idempotencyCache = MemoryDistributedCacheFixture.CreateCacheInstance(
+                cacheImplementation, accessLockImplementation);
+
+            // UseProblemDetailsForErrors = false (default)
+            var filter1 = new IdempotencyAttributeFilter(
+                idempotencyCache,
+                _loggerFactory,
+                true,
+                TimeSpan.FromHours(1).TotalMilliseconds,
+                _headerKeyName,
+                _distributedCacheKeysPrefix,
+                distributedLockTimeout: null,
+                cacheOnlySuccessResponses: true,
+                isIdempotencyOptional: false,
+                serializerOptions: null,
+                useProblemDetailsForErrors: false);
+
+            var filter2 = new IdempotencyAttributeFilter(
+                idempotencyCache,
+                _loggerFactory,
+                true,
+                TimeSpan.FromHours(1).TotalMilliseconds,
+                _headerKeyName,
+                _distributedCacheKeysPrefix,
+                distributedLockTimeout: null,
+                cacheOnlySuccessResponses: true,
+                isIdempotencyOptional: false,
+                serializerOptions: null,
+                useProblemDetailsForErrors: false);
+
+            // Act - First request should succeed
+            await filter1.OnActionExecutionAsync(firstExecutingContext, () => Task.FromResult(firstExecutedContext));
+            firstExecutingContext.Result.Should().BeNull("First request should not have a cached result");
+
+            // Cache the response
+            await filter1.OnResultExecutionAsync(firstResultExecutingContext, () => Task.FromResult(firstResultExecutedContext));
+
+            // Act - Second request with DIFFERENT body should return BadRequest
+            await filter2.OnActionExecutionAsync(secondExecutingContext, () => Task.FromResult(secondExecutedContext));
+
+            // Assert - The second request should be rejected with plain string
+            secondExecutingContext.Result.Should().NotBeNull("Second request with different body should be rejected");
+            secondExecutingContext.Result.Should().BeOfType<BadRequestObjectResult>();
+
+            var badRequestResult = (BadRequestObjectResult)secondExecutingContext.Result!;
+            badRequestResult.Value.Should().BeOfType<string>("Default behavior should return plain string");
+            badRequestResult.Value!.ToString().Should().Contain("was used in a different request");
+        }
+
+        /// <summary>
+        /// When UseProblemDetailsForErrors is true, the hash mismatch error
+        /// should return a BadRequestObjectResult with a ProblemDetails object.
+        /// </summary>
+        [Theory]
+        [InlineData("POST", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
+        [InlineData("PATCH", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
+        [InlineData("PUT", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
+        [InlineData("DELETE", CacheImplementation.DistributedCache, DistributedAccessLockImplementation.None)]
+        [InlineData("POST", CacheImplementation.FusionCache, DistributedAccessLockImplementation.None)]
+        public async Task HashMismatch_WhenUseProblemDetailsIsTrue_ReturnsProblemDetailsBadRequest(
+            string httpMethod,
+            CacheImplementation cacheImplementation,
+            DistributedAccessLockImplementation accessLockImplementation)
+        {
+            // Arrange
+            var idempotencyKey = Guid.NewGuid().ToString();
+            var requestHeaders = new HeaderDictionary
+            {
+                { "Content-Type", "application/json" },
+                { _headerKeyName, idempotencyKey }
+            };
+
+            string firstRequestBody = @"{""message"":""First message""}";
+            string secondRequestBody = @"{""message"":""Different message""}";
+
+            var expectedModel = new ResponseModelBasic
+            {
+                Id = 1,
+                CreatedOn = new DateTime(2019, 10, 12, 5, 25, 25)
+            };
+            var controllerResult = new OkObjectResult(expectedModel);
+
+            // First request context
+            var firstActionContext = ArrangeActionContextMock(
+                httpMethod, requestHeaders, firstRequestBody,
+                new HeaderDictionary(), controllerResult, StatusCodes.Status200OK);
+
+            var firstExecutingContext = new ActionExecutingContext(
+                firstActionContext,
+                new List<IFilterMetadata>(),
+                new Dictionary<string, object>(),
+                Mock.Of<Controller>());
+            var firstExecutedContext = CreateActionExecutedContext(firstActionContext);
+            var firstResultExecutingContext = CreateResultExecutingContext(firstActionContext, controllerResult);
+            var firstResultExecutedContext = CreateResultExecutedContext(firstActionContext, controllerResult);
+
+            // Second request context with DIFFERENT body
+            var secondActionContext = ArrangeActionContextMock(
+                httpMethod, requestHeaders, secondRequestBody,
+                new HeaderDictionary(), controllerResult, StatusCodes.Status200OK);
+
+            var secondExecutingContext = new ActionExecutingContext(
+                secondActionContext,
+                new List<IFilterMetadata>(),
+                new Dictionary<string, object>(),
+                Mock.Of<Controller>());
+            var secondExecutedContext = CreateActionExecutedContext(secondActionContext);
+
+            IIdempotencyAccessCache idempotencyCache = MemoryDistributedCacheFixture.CreateCacheInstance(
+                cacheImplementation, accessLockImplementation);
+
+            // UseProblemDetailsForErrors = true
+            var filter1 = new IdempotencyAttributeFilter(
+                idempotencyCache,
+                _loggerFactory,
+                true,
+                TimeSpan.FromHours(1).TotalMilliseconds,
+                _headerKeyName,
+                _distributedCacheKeysPrefix,
+                distributedLockTimeout: null,
+                cacheOnlySuccessResponses: true,
+                isIdempotencyOptional: false,
+                serializerOptions: null,
+                useProblemDetailsForErrors: true);
+
+            var filter2 = new IdempotencyAttributeFilter(
+                idempotencyCache,
+                _loggerFactory,
+                true,
+                TimeSpan.FromHours(1).TotalMilliseconds,
+                _headerKeyName,
+                _distributedCacheKeysPrefix,
+                distributedLockTimeout: null,
+                cacheOnlySuccessResponses: true,
+                isIdempotencyOptional: false,
+                serializerOptions: null,
+                useProblemDetailsForErrors: true);
+
+            // Act - First request should succeed
+            await filter1.OnActionExecutionAsync(firstExecutingContext, () => Task.FromResult(firstExecutedContext));
+            firstExecutingContext.Result.Should().BeNull("First request should not have a cached result");
+
+            // Cache the response
+            await filter1.OnResultExecutionAsync(firstResultExecutingContext, () => Task.FromResult(firstResultExecutedContext));
+
+            // Act - Second request with DIFFERENT body should return BadRequest with ProblemDetails
+            await filter2.OnActionExecutionAsync(secondExecutingContext, () => Task.FromResult(secondExecutedContext));
+
+            // Assert - The second request should be rejected with ProblemDetails
+            secondExecutingContext.Result.Should().NotBeNull("Second request with different body should be rejected");
+            secondExecutingContext.Result.Should().BeOfType<BadRequestObjectResult>();
+
+            var badRequestResult = (BadRequestObjectResult)secondExecutingContext.Result!;
+            badRequestResult.Value.Should().BeOfType<ProblemDetails>("UseProblemDetailsForErrors=true should return ProblemDetails");
+
+            var problemDetails = (ProblemDetails)badRequestResult.Value!;
+            problemDetails.Status.Should().Be(StatusCodes.Status400BadRequest);
+            problemDetails.Title.Should().Be("Bad Request");
+            problemDetails.Type.Should().Be("https://tools.ietf.org/html/rfc9110#section-15.5.1");
+            problemDetails.Detail.Should().Contain("was used in a different request");
+            problemDetails.Detail.Should().Contain(idempotencyKey);
+        }
+
+        #endregion
+
     }
 }
